@@ -1578,14 +1578,14 @@ async def on_message(message):
 
     if command == "!hilfe":
 
-    await message.channel.send(
-        "🛠️ **Mad Dog – Admin Hilfe**\n\n"
-        "`!tabelle` – aktuelle Rangliste anzeigen\n"
-        "`!undo` – letztes Ergebnis löschen\n"
-        "`!resettest` – Monatsreset testen"
-    )
+        await message.channel.send(
+            "🛠️ **Mad Dog – Admin Hilfe**\n\n"
+            "`!tabelle` – aktuelle Rangliste anzeigen\n"
+            "`!undo` – letztes Ergebnis löschen\n"
+            "`!resettest` – Monatsreset testen"
+        )
 
-    return
+        return
 
     # =====================================================
     # TABELLE
