@@ -355,24 +355,34 @@ def write_table():
 
 def table_to_discord(table):
 
+    now = jetzt()
+
+    text = (
+        f"**Aktuelle Tabelle {now.strftime('%d.%m.%Y %H:%M')} Uhr**\n\n"
+        "```text\n"
+        f"{'Rg':<4}{'Name':<15}{'Sp':>3}{'S':>4}{'N':>4}"
+        f"{'L+':>5}{'L-':>5}{'Dif':>6}{'Pkt':>6}\n"
+        f"{'-'*4}{'-'*15}{'-'*3}{'-'*4}{'-'*4}"
+        f"{'-'*5}{'-'*5}{'-'*6}{'-'*6}\n"
+    )
+
     if not table:
-        return "🏆 **RANGLISTE**\n\nNoch keine Spiele in diesem Monat."
+        text += "Noch keine Spiele in diesem Monat.\n"
+    else:
+        for rang, player in enumerate(table, start=1):
+            text += (
+                f"{rang:<4}"
+                f"{player['name']:<15}"
+                f"{player['spiele']:>3}"
+                f"{player['siege']:>4}"
+                f"{player['niederlagen']:>4}"
+                f"{player['legs_plus']:>5}"
+                f"{player['legs_minus']:>5}"
+                f"{player['leg_dif']:>6}"
+                f"{player['punkte']:>6}\n"
+            )
 
-    text = "🏆 **RANGLISTE**\n"
-    text += "━━━━━━━━━━━━━━━━━━━━\n\n"
-
-    for rang, player in enumerate(table, start=1):
-
-        text += (
-            f"**{rang}. {player['name']}**\n"
-            f"🎮 {player['spiele']} Spiele | "
-            f"🏆 {player['siege']} Siege | "
-            f"💀 {player['niederlagen']} Niederlagen\n"
-            f"🎯 Legs +{player['legs_plus']} | "
-            f"📉 Legs -{player['legs_minus']} | "
-            f"📊 Diff {player['leg_dif']}\n"
-            f"⭐ **{player['punkte']} Punkte**\n\n"
-        )
+    text += "```"
 
     return text
 
