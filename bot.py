@@ -770,8 +770,10 @@ async def on_message(message):
 
             return
 
-        player_a = mentions[0]
-        player_b = mentions[1]
+        mention_matches = re.findall(r"<@!?(\d+)>", message.content)
+
+        player_a = bot.get_user(int(mention_matches[0]))
+        player_b = bot.get_user(int(mention_matches[1]))
 
         if player_a.id == player_b.id:
 
@@ -825,7 +827,7 @@ async def on_message(message):
         if legs_a > legs_b:
             winner = player_a
         else:
-            winner = player_a
+            winner = player_b
 
         # -------------------------------------------------
         # IN GOOGLE SHEETS SPEICHERN
