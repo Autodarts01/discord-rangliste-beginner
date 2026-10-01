@@ -1463,193 +1463,181 @@ async def on_message(message):
         "!undo",
         "!resettest"
     ):
-    
-    
 
         # -------------------------------------------------
         # NUR ADMIN-CHAT
         # -------------------------------------------------
 
-        if (
-            message.channel.name
-            != ADMIN_CHANNEL_NAME
-        ):
+        if message.channel.name != ADMIN_CHANNEL_NAME:
             return
 
         # -------------------------------------------------
         # NUR ADMINS
         # -------------------------------------------------
 
-        if not is_admin(
-            message.author
-        ):
+        if not is_admin(message.author):
             return
-            
-# -----------------------------------------------------
-# TEMPORÄRER MONATSRESET-TEST
-# -----------------------------------------------------
 
-if command == "!resettest":
+        # =================================================
+        # RESETTEST
+        # =================================================
 
-    print(
-        "🧪 TEST-MONATSRESET wird ausgeführt...",
-        flush=True
-    )
+        if command == "!resettest":
 
-    # Aktuellen Monat nur auswerten
-    # NICHT löschen und NICHT zurücksetzen
-    table = calculate_table()
-
-    if table:
-
-        top3 = table[:3]
-
-        text = (
-            "🧪 **TEST – MONATSSIEGER**\n"
-            "━━━━━━━━━━━━━━━━━━━━\n\n"
-        )
-
-        emojis = ["🥇", "🥈", "🥉"]
-
-        for index, player in enumerate(top3):
-
-            text += (
-                f"{emojis[index]} **{player['name']}**\n"
-                f"🎮 {player['spiele']} Spiele | "
-                f"🏆 {player['siege']} Siege | "
-                f"💀 {player['niederlagen']} Niederlagen\n"
-                f"🎯 Legs +{player['legs_plus']} | "
-                f"📉 Legs -{player['legs_minus']} | "
-                f"📊 Diff {player['leg_dif']}\n"
-                f"⭐ **{player['punkte']} Punkte**\n\n"
+            print(
+                "🧪 TEST-MONATSRESET wird ausgeführt...",
+                flush=True
             )
 
-        winner = top3[0]
+            # Aktuellen Monat nur auswerten
+            # NICHT löschen und NICHT zurücksetzen
+            table = calculate_table()
 
-        text += (
-            f"👑 **Monatssieger: {winner['name']}!**\n"
-            f"⭐ **{winner['punkte']} Punkte**\n"
-            "🎯 Herzlichen Glückwunsch! 🔥"
-        )
+            if table:
 
-        info_channel = get_channel(INFO_CHANNEL_NAME)
+                top3 = table[:3]
 
-        if info_channel:
-            await info_channel.send(text)
+                text = (
+                    "🧪 **TEST – MONATSSIEGER**\n"
+                    "━━━━━━━━━━━━━━━━━━━━\n\n"
+                )
 
-    else:
+                emojis = ["🥇", "🥈", "🥉"]
 
-        await message.channel.send(
-            "⚠️ Keine Ergebnisse im aktuellen Monat vorhanden."
-        )
+                for index, player in enumerate(top3):
 
-    # -----------------------------------------------------
-    # WICHTIG:
-    # BEIM TEST NICHTS LÖSCHEN!
-    # -----------------------------------------------------
+                    text += (
+                        f"{emojis[index]} **{player['name']}**\n"
+                        f"🎮 {player['spiele']} Spiele | "
+                        f"🏆 {player['siege']} Siege | "
+                        f"💀 {player['niederlagen']} Niederlagen\n"
+                        f"🎯 Legs +{player['legs_plus']} | "
+                        f"📉 Legs -{player['legs_minus']} | "
+                        f"📊 Diff {player['leg_dif']}\n"
+                        f"⭐ **{player['punkte']} Punkte**\n\n"
+                    )
 
-    await message.channel.send(
-        "🧪 **Test-Monatsreset abgeschlossen.**\n"
-        "✅ Die aktuelle Rangliste und Ergebnisse wurden "
-        "**nicht verändert**."
-    )
+                winner = top3[0]
 
-    return
+                text += (
+                    f"👑 **Monatssieger: {winner['name']}!**\n"
+                    f"⭐ **{winner['punkte']} Punkte**\n"
+                    "🎯 Herzlichen Glückwunsch! 🔥"
+                )
 
-    # =====================================================
-    # HILFE
-    # =====================================================
+                info_channel = get_channel(
+                    INFO_CHANNEL_NAME
+                )
 
-    if command == "!hilfe":
+                if info_channel:
+                    await info_channel.send(text)
 
-        await message.channel.send(
-            "🛠️ **Mad Dog – Admin Hilfe**\n\n"
-            "`!tabelle` – aktuelle Rangliste anzeigen\n"
-            "`!undo` – letztes Ergebnis löschen\n"
-            "`!resettest` – Monatsreset testen"
-        )
+            else:
 
-        return
-
-    # =====================================================
-    # TABELLE
-    # =====================================================
-
-    if command == "!tabelle":
-
-        await send_table_image(
-            message.channel
-        )
-
-        return
-
-    # =====================================================
-    # UNDO
-    # =====================================================
-
-    if command == "!undo":
-
-        rows = (
-            ergebnis_sheet.get_all_values()
-        )
-
-        if len(rows) <= 1:
+                await message.channel.send(
+                    "⚠️ Keine Ergebnisse im aktuellen Monat vorhanden."
+                )
 
             await message.channel.send(
-                "⚠️ **Es gibt kein Ergebnis "
-                "zum Löschen.**"
+                "🧪 **Test-Monatsreset abgeschlossen.**\n"
+                "✅ Die aktuelle Rangliste und Ergebnisse wurden "
+                "**nicht verändert**."
             )
 
             return
 
-        last_row = len(rows)
+        # =================================================
+        # HILFE
+        # =================================================
 
-        deleted = rows[
-            last_row - 1
-        ]
-
-        if len(deleted) < 7:
+        if command == "!hilfe":
 
             await message.channel.send(
-                "⚠️ **Das letzte Ergebnis "
-                "konnte nicht gelesen werden.**"
+                "🛠️ **Mad Dog – Admin Hilfe**\n\n"
+                "`!tabelle` – aktuelle Rangliste anzeigen\n"
+                "`!undo` – letztes Ergebnis löschen\n"
+                "`!resettest` – Monatsreset testen"
             )
 
             return
 
-        player_a = deleted[0]
-        player_b = deleted[1]
-        legs_a = deleted[2]
-        legs_b = deleted[3]
+        # =================================================
+        # TABELLE
+        # =================================================
 
-        # -------------------------------------------------
-        # LETZTE ZEILE LÖSCHEN
-        # -------------------------------------------------
+        if command == "!tabelle":
 
-        ergebnis_sheet.delete_rows(
-            last_row
-        )
+            await send_table_image(
+                message.channel
+            )
 
-        # -------------------------------------------------
-        # TABELLE NEU BERECHNEN
-        # -------------------------------------------------
+            return
 
-        write_table()
+        # =================================================
+        # UNDO
+        # =================================================
 
-        # -------------------------------------------------
-        # BESTÄTIGUNG
-        # -------------------------------------------------
+        if command == "!undo":
 
-        await message.channel.send(
-            f"🗑️ **Letztes Ergebnis gelöscht!**\n\n"
-            f"**{player_a} "
-            f"{legs_a}:{legs_b} "
-            f"{player_b}**\n\n"
-            f"✅ Die Rangliste wurde "
-            f"neu berechnet."
-        )
+            rows = ergebnis_sheet.get_all_values()
 
-        return
+            if len(rows) <= 1:
+
+                await message.channel.send(
+                    "⚠️ **Es gibt kein Ergebnis "
+                    "zum Löschen.**"
+                )
+
+                return
+
+            last_row = len(rows)
+
+            deleted = rows[
+                last_row - 1
+            ]
+
+            if len(deleted) < 7:
+
+                await message.channel.send(
+                    "⚠️ **Das letzte Ergebnis "
+                    "konnte nicht gelesen werden.**"
+                )
+
+                return
+
+            player_a = deleted[0]
+            player_b = deleted[1]
+            legs_a = deleted[2]
+            legs_b = deleted[3]
+
+            # -------------------------------------------------
+            # LETZTE ZEILE LÖSCHEN
+            # -------------------------------------------------
+
+            ergebnis_sheet.delete_rows(
+                last_row
+            )
+
+            # -------------------------------------------------
+            # TABELLE NEU BERECHNEN
+            # -------------------------------------------------
+
+            write_table()
+
+            # -------------------------------------------------
+            # BESTÄTIGUNG
+            # -------------------------------------------------
+
+            await message.channel.send(
+                f"🗑️ **Letztes Ergebnis gelöscht!**\n\n"
+                f"**{player_a} "
+                f"{legs_a}:{legs_b} "
+                f"{player_b}**\n\n"
+                f"✅ Die Rangliste wurde "
+                f"neu berechnet."
+            )
+
+            return
 
 
 # =========================================================
