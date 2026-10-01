@@ -479,14 +479,14 @@ def get_font(size, bold=False):
 def create_table_image(table):
 
     # -----------------------------------------------------
-    # GRÖSSE
+    # BILDGRÖSSE
     # -----------------------------------------------------
 
-    width = 1400
+    width = 1600
 
-    title_height = 100
-    header_height = 85
-    row_height = 75
+    title_height = 110
+    header_height = 90
+    row_height = 85
     bottom_space = 35
 
     number_of_rows = max(
@@ -517,25 +517,9 @@ def create_table_image(table):
     # SCHRIFTEN
     # -----------------------------------------------------
 
-    font_title = get_font(
-        34,
-        bold=True
-    )
-
-    font_header = get_font(
-        28,
-        bold=True
-    )
-
-    font = get_font(
-        27,
-        bold=False
-    )
-
-    font_name = get_font(
-        27,
-        bold=True
-    )
+    font_title = get_font(42)
+    font_header = get_font(34)
+    font = get_font(32)
 
     # -----------------------------------------------------
     # TITEL
@@ -546,8 +530,8 @@ def create_table_image(table):
     )
 
     draw.text(
-        (35, 28),
-        f"Aktuelle Tabelle {datum} Uhr",
+        (45, 30),
+        f"🏆 Rangliste – {datum} Uhr",
         fill="#ffffff",
         font=font_title
     )
@@ -557,15 +541,15 @@ def create_table_image(table):
     # -----------------------------------------------------
 
     columns = [
-        ("Rg", 35, "left"),
-        ("Name", 150, "left"),
-        ("Sp", 700, "center"),
-        ("S", 790, "center"),
-        ("N", 870, "center"),
-        ("L+", 970, "center"),
-        ("L-", 1060, "center"),
-        ("Dif", 1160, "center"),
-        ("Pkt", 1280, "center"),
+        ("Rg", 60, "center"),
+        ("Name", 180, "left"),
+        ("Sp", 760, "center"),
+        ("S", 850, "center"),
+        ("N", 930, "center"),
+        ("L+", 1030, "center"),
+        ("L-", 1130, "center"),
+        ("Dif", 1240, "center"),
+        ("Pkt", 1370, "center"),
     ]
 
     header_y = title_height
@@ -583,8 +567,7 @@ def create_table_image(table):
         )
 
         text_width = (
-            bbox[2]
-            - bbox[0]
+            bbox[2] - bbox[0]
         )
 
         if align == "center":
@@ -611,14 +594,14 @@ def create_table_image(table):
 
     line_y = (
         header_y
-        + 55
+        + 65
     )
 
     draw.line(
         (
-            35,
+            40,
             line_y,
-            width - 35,
+            width - 40,
             line_y
         ),
         fill="#55575c",
@@ -649,43 +632,30 @@ def create_table_image(table):
             str(player["punkte"]),
         ]
 
-        for column_index, (
-            value,
-            (_, x, align)
-        ) in enumerate(
-            zip(values, columns)
+        for value, (_, x, align) in zip(
+            values,
+            columns
         ):
 
             # -------------------------------------------------
             # NAMEN BEGRENZEN
             # -------------------------------------------------
 
-            if len(value) > 30:
+            if len(value) > 24:
 
                 value = (
-                    value[:27]
+                    value[:21]
                     + "..."
                 )
-
-            # -------------------------------------------------
-            # NAME FETT
-            # -------------------------------------------------
-
-            current_font = (
-                font_name
-                if column_index == 1
-                else font
-            )
 
             bbox = draw.textbbox(
                 (0, 0),
                 value,
-                font=current_font
+                font=font
             )
 
             text_width = (
-                bbox[2]
-                - bbox[0]
+                bbox[2] - bbox[0]
             )
 
             if align == "center":
@@ -703,11 +673,11 @@ def create_table_image(table):
                 (draw_x, y),
                 value,
                 fill="#eeeeee",
-                font=current_font
+                font=font
             )
 
     # -----------------------------------------------------
-    # PNG ERSTELLEN
+    # BILD SPEICHERN
     # -----------------------------------------------------
 
     output = io.BytesIO()
