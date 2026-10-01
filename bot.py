@@ -19,7 +19,6 @@ from google.oauth2.service_account import Credentials
 # =========================================================
 
 TOKEN = os.environ["DISCORD_TOKEN"]
-
 GOOGLE_SHEET_ID = os.environ["GOOGLE_SHEET_ID"]
 
 TZ = ZoneInfo("Europe/Vienna")
@@ -112,7 +111,9 @@ def jetzt():
 
 
 def get_channel(name):
+
     for guild in bot.guilds:
+
         channel = discord.utils.get(
             guild.text_channels,
             name=name
@@ -125,6 +126,7 @@ def get_channel(name):
 
 
 def is_admin(member):
+
     return (
         isinstance(member, discord.Member)
         and member.guild_permissions.administrator
@@ -132,13 +134,14 @@ def is_admin(member):
 
 
 def normalize_name(name):
+
     return " ".join(
         name.strip().lower().split()
     )
 
 
 # =========================================================
-# GOOGLE SHEETS ÜBERSCHRIFTEN
+# GOOGLE-SHEETS ÜBERSCHRIFTEN
 # =========================================================
 
 def ensure_headers():
@@ -226,7 +229,7 @@ def get_match_rows():
             continue
 
         # -------------------------------------------------
-        # DATUM
+        # NUR AKTUELLER MONAT
         # -------------------------------------------------
 
         if datum:
@@ -241,10 +244,12 @@ def get_match_rows():
         # -------------------------------------------------
 
         try:
+
             legs_a_int = int(legs_a)
             legs_b_int = int(legs_b)
 
         except ValueError:
+
             continue
 
         result.append(
@@ -439,12 +444,21 @@ def write_table():
 # SCHRIFTART
 # =========================================================
 
-def get_font(size):
+def get_font(size, bold=False):
 
-    font_paths = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
-    ]
+    if bold:
+
+        font_paths = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+        ]
+
+    else:
+
+        font_paths = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+        ]
 
     for path in font_paths:
 
@@ -464,12 +478,16 @@ def get_font(size):
 
 def create_table_image(table):
 
-    width = 1000
+    # -----------------------------------------------------
+    # GRÖSSE
+    # -----------------------------------------------------
 
-    title_height = 75
-    header_height = 65
-    row_height = 55
-    bottom_space = 25
+    width = 1400
+
+    title_height = 100
+    header_height = 85
+    row_height = 75
+    bottom_space = 35
 
     number_of_rows = max(
         len(table),
@@ -499,9 +517,25 @@ def create_table_image(table):
     # SCHRIFTEN
     # -----------------------------------------------------
 
-    font_title = get_font(26)
-    font_header = get_font(21)
-    font = get_font(20)
+    font_title = get_font(
+        34,
+        bold=True
+    )
+
+    font_header = get_font(
+        28,
+        bold=True
+    )
+
+    font = get_font(
+        27,
+        bold=False
+    )
+
+    font_name = get_font(
+        27,
+        bold=True
+    )
 
     # -----------------------------------------------------
     # TITEL
@@ -512,7 +546,7 @@ def create_table_image(table):
     )
 
     draw.text(
-        (25, 22),
+        (35, 28),
         f"Aktuelle Tabelle {datum} Uhr",
         fill="#ffffff",
         font=font_title
@@ -523,15 +557,15 @@ def create_table_image(table):
     # -----------------------------------------------------
 
     columns = [
-        ("Rg", 25, "left"),
-        ("Name", 90, "left"),
-        ("Sp", 475, "center"),
-        ("S", 540, "center"),
-        ("N", 600, "center"),
-        ("L+", 670, "center"),
-        ("L-", 740, "center"),
-        ("Dif", 815, "center"),
-        ("Pkt", 900, "center"),
+        ("Rg", 35, "left"),
+        ("Name", 150, "left"),
+        ("Sp", 700, "center"),
+        ("S", 790, "center"),
+        ("N", 870, "center"),
+        ("L+", 970, "center"),
+        ("L-", 1060, "center"),
+        ("Dif", 1160, "center"),
+        ("Pkt", 1280, "center"),
     ]
 
     header_y = title_height
@@ -549,7 +583,8 @@ def create_table_image(table):
         )
 
         text_width = (
-            bbox[2] - bbox[0]
+            bbox[2]
+            - bbox[0]
         )
 
         if align == "center":
@@ -576,18 +611,18 @@ def create_table_image(table):
 
     line_y = (
         header_y
-        + 45
+        + 55
     )
 
     draw.line(
         (
-            25,
+            35,
             line_y,
-            width - 25,
+            width - 35,
             line_y
         ),
         fill="#55575c",
-        width=1
+        width=2
     )
 
     # -----------------------------------------------------
@@ -598,7 +633,7 @@ def create_table_image(table):
 
         y = (
             line_y
-            + 15
+            + 20
             + index * row_height
         )
 
@@ -614,24 +649,43 @@ def create_table_image(table):
             str(player["punkte"]),
         ]
 
-        for value, (_, x, align) in zip(
-            values,
-            columns
+        for column_index, (
+            value,
+            (_, x, align)
+        ) in enumerate(
+            zip(values, columns)
         ):
 
-            # Namen bei extremer Länge abschneiden
+            # -------------------------------------------------
+            # NAMEN BEGRENZEN
+            # -------------------------------------------------
+
             if len(value) > 30:
 
-                value = value[:27] + "..."
+                value = (
+                    value[:27]
+                    + "..."
+                )
+
+            # -------------------------------------------------
+            # NAME FETT
+            # -------------------------------------------------
+
+            current_font = (
+                font_name
+                if column_index == 1
+                else font
+            )
 
             bbox = draw.textbbox(
                 (0, 0),
                 value,
-                font=font
+                font=current_font
             )
 
             text_width = (
-                bbox[2] - bbox[0]
+                bbox[2]
+                - bbox[0]
             )
 
             if align == "center":
@@ -649,11 +703,11 @@ def create_table_image(table):
                 (draw_x, y),
                 value,
                 fill="#eeeeee",
-                font=font
+                font=current_font
             )
 
     # -----------------------------------------------------
-    # IN MEMORY SPEICHERN
+    # PNG ERSTELLEN
     # -----------------------------------------------------
 
     output = io.BytesIO()
@@ -689,6 +743,31 @@ async def send_table_image(channel):
 
 
 # =========================================================
+# AUTOMATISCHE TABELLE
+# =========================================================
+
+async def update_discord_table():
+
+    channel = get_channel(
+        TABLE_CHANNEL_NAME
+    )
+
+    if not channel:
+
+        print(
+            f"⚠️ Kanal #{TABLE_CHANNEL_NAME} "
+            f"nicht gefunden.",
+            flush=True
+        )
+
+        return
+
+    await send_table_image(
+        channel
+    )
+
+
+# =========================================================
 # MONATSARCHIV
 # =========================================================
 
@@ -709,12 +788,9 @@ def get_previous_year_month():
 
 def archive_current_month():
 
-    # -----------------------------------------------------
-    # WICHTIG:
-    # Beim Reset am 01. wird der Vormonat archiviert.
-    # -----------------------------------------------------
-
-    year, month = get_previous_year_month()
+    year, month = (
+        get_previous_year_month()
+    )
 
     archive_name = (
         f"Archiv_{year}_{month:02d}"
@@ -785,7 +861,7 @@ def get_previous_month_name():
 
 
 # =========================================================
-# VORMONATS-ARCHIV HOLEN
+# VORMONATS-ARCHIV
 # =========================================================
 
 def get_previous_month_archive():
@@ -848,10 +924,6 @@ def calculate_archive_table(
 
         winner = row[6].strip()
 
-        # -------------------------------------------------
-        # SPIELER
-        # -------------------------------------------------
-
         for player in [p1, p2]:
 
             key = normalize_name(
@@ -881,10 +953,6 @@ def calculate_archive_table(
         stats[p2_key]["legs_plus"] += legs_b
         stats[p2_key]["legs_minus"] += legs_a
 
-        # -------------------------------------------------
-        # SIEGER
-        # -------------------------------------------------
-
         winner_key = normalize_name(
             winner
         )
@@ -898,10 +966,6 @@ def calculate_archive_table(
 
             stats[p2_key]["siege"] += 1
             stats[p1_key]["niederlagen"] += 1
-
-    # =====================================================
-    # TABELLE
-    # =====================================================
 
     table = []
 
@@ -1098,7 +1162,7 @@ async def scheduler():
     )
 
     # =====================================================
-    # MONATSRESET
+    # MONATSRESET 00:00
     # =====================================================
 
     if (
@@ -1107,10 +1171,7 @@ async def scheduler():
         and now.minute == 0
     ):
 
-        if (
-            last_reset_month
-            != current_month
-        ):
+        if last_reset_month != current_month:
 
             await monthly_reset()
 
@@ -1144,10 +1205,7 @@ async def scheduler():
             )
         )
 
-        if (
-            last_table_update
-            != update_key
-        ):
+        if last_table_update != update_key:
 
             await update_discord_table()
 
@@ -1198,15 +1256,12 @@ async def on_message(message):
     # MATCH-KANAL
     # =====================================================
 
-    if (
-        message.channel.name
-        == MATCH_CHANNEL_NAME
-    ):
+    if message.channel.name == MATCH_CHANNEL_NAME:
 
         content = message.content.strip()
 
         # -------------------------------------------------
-        # MENTIONS AUS ORIGINALNACHRICHT LESEN
+        # MENTIONS AUS ORIGINALNACHRICHT
         # -------------------------------------------------
 
         mention_matches = re.findall(
@@ -1255,7 +1310,10 @@ async def on_message(message):
                 int(mention_matches[1])
             )
 
-        if player_a is None or player_b is None:
+        if (
+            player_a is None
+            or player_b is None
+        ):
 
             await message.channel.send(
                 "⚠️ **Spieler konnte nicht gefunden werden.**"
@@ -1281,7 +1339,8 @@ async def on_message(message):
         # =================================================
 
         format_match = re.search(
-            r"<@!?\d+>\s+vs\s+<@!?\d+>\s+(\d+)\s*[:\-]\s*(\d+)",
+            r"<@!?\d+>\s+vs\s+<@!?\d+>\s+"
+            r"(\d+)\s*[:\-]\s*(\d+)",
             content,
             re.IGNORECASE
         )
