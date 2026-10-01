@@ -1,11 +1,14 @@
 import os
 import re
+import io
 import asyncio
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import discord
 import gspread
+
+from PIL import Image, ImageDraw, ImageFont
 
 from discord.ext import commands, tasks
 from google.oauth2.service_account import Credentials
@@ -110,9 +113,14 @@ def jetzt():
 
 def get_channel(name):
     for guild in bot.guilds:
-        channel = discord.utils.get(guild.text_channels, name=name)
+        channel = discord.utils.get(
+            guild.text_channels,
+            name=name
+        )
+
         if channel:
             return channel
+
     return None
 
 
@@ -124,32 +132,58 @@ def is_admin(member):
 
 
 def normalize_name(name):
-    return " ".join(name.strip().lower().split())
+    return " ".join(
+        name.strip().lower().split()
+    )
 
+
+# =========================================================
+# GOOGLE SHEETS ÜBERSCHRIFTEN
+# =========================================================
 
 def ensure_headers():
-    """
-    Stellt sicher, dass die Google-Sheets die benötigten
-    Überschriften haben.
-    """
 
-    # Ergebnis
+    # -----------------------------------------------------
+    # ERGEBNIS
+    # -----------------------------------------------------
+
     ergebnis_values = ergebnis_sheet.get_all_values()
 
     if not ergebnis_values:
-        ergebnis_sheet.update("A1:H1", [ERGEBNIS_HEADER])
+
+        ergebnis_sheet.update(
+            values=[ERGEBNIS_HEADER],
+            range_name="A1:H1"
+        )
+
     else:
+
         current = ergebnis_values[0]
 
-        # Fehlende Datum-Spalte ergänzen
         if len(current) < 8:
-            ergebnis_sheet.update("H1", [["Datum"]])
 
-    # Tabelle
-    tabelle_sheet.update("A1:I1", [TABELLE_HEADER])
+            ergebnis_sheet.update(
+                values=[ERGEBNIS_HEADER],
+                range_name="A1:H1"
+            )
 
-    # Tabelle final
-    final_sheet.update("A1:I1", [TABELLE_HEADER])
+    # -----------------------------------------------------
+    # TABELLE
+    # -----------------------------------------------------
+
+    tabelle_sheet.update(
+        values=[TABELLE_HEADER],
+        range_name="A1:I1"
+    )
+
+    # -----------------------------------------------------
+    # TABELLE FINAL
+    # -----------------------------------------------------
+
+    final_sheet.update(
+        values=[TABELLE_HEADER],
+        range_name="A1:I1"
+    )
 
 
 # =========================================================
@@ -157,12 +191,6 @@ def ensure_headers():
 # =========================================================
 
 def get_match_rows():
-    """
-    Liest nur die Ergebnisse des aktuellen Monats.
-
-    Archivierte Monate liegen in Archiv_YYYY_MM und werden
-    nicht in die aktuelle Rangliste eingerechnet.
-    """
 
     rows = ergebnis_sheet.get_all_values()
 
@@ -173,15 +201,20 @@ def get_match_rows():
 
     result = []
 
-    for row_number, row in enumerate(rows[1:], start=2):
+    for row_number, row in enumerate(
+        rows[1:],
+        start=2
+    ):
 
         if len(row) < 7:
             continue
 
         spieler_a = row[0].strip()
         spieler_b = row[1].strip()
+
         legs_a = row[2].strip()
         legs_b = row[3].strip()
+
         winner = row[6].strip()
 
         datum = ""
@@ -192,27 +225,39 @@ def get_match_rows():
         if not spieler_a or not spieler_b:
             continue
 
-        # Alte Zeilen ohne Datum werden ebenfalls berücksichtigt,
-        # solange sie in der aktuellen Ergebnis-Tabelle stehen.
+        # -------------------------------------------------
+        # DATUM
+        # -------------------------------------------------
+
         if datum:
-            if not datum.startswith(aktueller_monat):
+
+            if not datum.startswith(
+                aktueller_monat
+            ):
                 continue
+
+        # -------------------------------------------------
+        # LEGS
+        # -------------------------------------------------
 
         try:
             legs_a_int = int(legs_a)
             legs_b_int = int(legs_b)
+
         except ValueError:
             continue
 
-        result.append({
-            "row": row_number,
-            "spieler_a": spieler_a,
-            "spieler_b": spieler_b,
-            "legs_a": legs_a_int,
-            "legs_b": legs_b_int,
-            "winner": winner,
-            "datum": datum,
-        })
+        result.append(
+            {
+                "row": row_number,
+                "spieler_a": spieler_a,
+                "spieler_b": spieler_b,
+                "legs_a": legs_a_int,
+                "legs_b": legs_b_int,
+                "winner": winner,
+                "datum": datum,
+            }
+        )
 
     return result
 
@@ -222,6 +267,7 @@ def get_match_rows():
 # =========================================================
 
 def calculate_table():
+
     stats = {}
 
     matches = get_match_rows()
@@ -236,11 +282,16 @@ def calculate_table():
 
         winner = match["winner"]
 
+        # -------------------------------------------------
+        # SPIELER ANLEGEN
+        # -------------------------------------------------
+
         for player in [p1, p2]:
 
             key = normalize_name(player)
 
             if key not in stats:
+
                 stats[key] = {
                     "name": player,
                     "spiele": 0,
@@ -253,8 +304,16 @@ def calculate_table():
         p1_key = normalize_name(p1)
         p2_key = normalize_name(p2)
 
+        # -------------------------------------------------
+        # SPIELE
+        # -------------------------------------------------
+
         stats[p1_key]["spiele"] += 1
         stats[p2_key]["spiele"] += 1
+
+        # -------------------------------------------------
+        # LEGS
+        # -------------------------------------------------
 
         stats[p1_key]["legs_plus"] += legs_a
         stats[p1_key]["legs_minus"] += legs_b
@@ -262,40 +321,54 @@ def calculate_table():
         stats[p2_key]["legs_plus"] += legs_b
         stats[p2_key]["legs_minus"] += legs_a
 
+        # -------------------------------------------------
+        # SIEGER
+        # -------------------------------------------------
+
         winner_key = normalize_name(winner)
 
         if winner_key == p1_key:
+
             stats[p1_key]["siege"] += 1
             stats[p2_key]["niederlagen"] += 1
 
         elif winner_key == p2_key:
+
             stats[p2_key]["siege"] += 1
             stats[p1_key]["niederlagen"] += 1
+
+    # =====================================================
+    # TABELLE
+    # =====================================================
 
     table = []
 
     for data in stats.values():
 
         leg_dif = (
-            data["legs_plus"] -
-            data["legs_minus"]
+            data["legs_plus"]
+            - data["legs_minus"]
         )
 
         punkte = data["siege"] * 3
 
-        table.append({
-            "name": data["name"],
-            "spiele": data["spiele"],
-            "siege": data["siege"],
-            "niederlagen": data["niederlagen"],
-            "legs_plus": data["legs_plus"],
-            "legs_minus": data["legs_minus"],
-            "leg_dif": leg_dif,
-            "punkte": punkte,
-        })
+        table.append(
+            {
+                "name": data["name"],
+                "spiele": data["spiele"],
+                "siege": data["siege"],
+                "niederlagen": data["niederlagen"],
+                "legs_plus": data["legs_plus"],
+                "legs_minus": data["legs_minus"],
+                "leg_dif": leg_dif,
+                "punkte": punkte,
+            }
+        )
 
-    # Manfred-Prinzip:
-    # Punkte -> Leg-Differenz -> Siege
+    # -----------------------------------------------------
+    # SORTIERUNG
+    # -----------------------------------------------------
+
     table.sort(
         key=lambda x: (
             x["punkte"],
@@ -318,132 +391,308 @@ def write_table():
 
     rows = [TABELLE_HEADER]
 
-    for rang, player in enumerate(table, start=1):
+    for rang, player in enumerate(
+        table,
+        start=1
+    ):
 
-        rows.append([
-            rang,
-            player["name"],
-            player["spiele"],
-            player["siege"],
-            player["niederlagen"],
-            player["legs_plus"],
-            player["legs_minus"],
-            player["leg_dif"],
-            player["punkte"],
-        ])
+        rows.append(
+            [
+                rang,
+                player["name"],
+                player["spiele"],
+                player["siege"],
+                player["niederlagen"],
+                player["legs_plus"],
+                player["legs_minus"],
+                player["leg_dif"],
+                player["punkte"],
+            ]
+        )
 
-    # Tabelle
+    # -----------------------------------------------------
+    # TABELLE
+    # -----------------------------------------------------
+
     tabelle_sheet.clear()
+
     tabelle_sheet.update(
-        f"A1:I{len(rows)}",
-        rows
+        values=rows,
+        range_name=f"A1:I{len(rows)}"
     )
 
-    # Tabelle final
+    # -----------------------------------------------------
+    # TABELLE FINAL
+    # -----------------------------------------------------
+
     final_sheet.clear()
+
     final_sheet.update(
-        f"A1:I{len(rows)}",
-        rows
+        values=rows,
+        range_name=f"A1:I{len(rows)}"
     )
 
     return table
 
 
 # =========================================================
-# DISCORD-TABELLE
+# SCHRIFTART
 # =========================================================
 
-def table_to_discord(table):
+def get_font(size):
 
-    now = jetzt()
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+    ]
 
-    text = (
-        f"**Aktuelle Tabelle {now.strftime('%d.%m.%Y %H:%M')} Uhr**\n\n"
-        "```text\n"
-        f"{'Rg':<3}{'Name':<10}{'Sp':>3}{'S':>3}{'N':>3}"
-        f"{'L+':>4}{'L-':>4}{'Dif':>4}{'Pkt':>4}\n"
-        f"{'-'*3}{'-'*10}{'-'*3}{'-'*3}{'-'*3}"
-        f"{'-'*4}{'-'*4}{'-'*4}{'-'*4}\n"
-        
-    )
+    for path in font_paths:
 
-    if not table:
-        text += "Noch keine Spiele in diesem Monat.\n"
-    else:
-        for rang, player in enumerate(table, start=1):
-            text += (
-                f"{rang:<4}"
-                f"{player['name']:<15}"
-                f"{player['spiele']:>3}"
-                f"{player['siege']:>4}"
-                f"{player['niederlagen']:>4}"
-                f"{player['legs_plus']:>5}"
-                f"{player['legs_minus']:>5}"
-                f"{player['leg_dif']:>6}"
-                f"{player['punkte']:>6}\n"
+        if os.path.exists(path):
+
+            return ImageFont.truetype(
+                path,
+                size
             )
 
-    text += "```"
-
-    return text
+    return ImageFont.load_default()
 
 
-async def update_discord_table():
+# =========================================================
+# TABELLE ALS PNG ERSTELLEN
+# =========================================================
 
-    channel = get_channel(TABLE_CHANNEL_NAME)
+def create_table_image(table):
 
-    if not channel:
-        print(
-            f"⚠️ Kanal #{TABLE_CHANNEL_NAME} nicht gefunden.",
-            flush=True
+    width = 1000
+
+    title_height = 75
+    header_height = 65
+    row_height = 55
+    bottom_space = 25
+
+    number_of_rows = max(
+        len(table),
+        1
+    )
+
+    height = (
+        title_height
+        + header_height
+        + number_of_rows * row_height
+        + bottom_space
+    )
+
+    # -----------------------------------------------------
+    # BILD
+    # -----------------------------------------------------
+
+    image = Image.new(
+        "RGB",
+        (width, height),
+        "#292b2f"
+    )
+
+    draw = ImageDraw.Draw(image)
+
+    # -----------------------------------------------------
+    # SCHRIFTEN
+    # -----------------------------------------------------
+
+    font_title = get_font(26)
+    font_header = get_font(21)
+    font = get_font(20)
+
+    # -----------------------------------------------------
+    # TITEL
+    # -----------------------------------------------------
+
+    datum = jetzt().strftime(
+        "%d.%m.%Y %H:%M"
+    )
+
+    draw.text(
+        (25, 22),
+        f"Aktuelle Tabelle {datum} Uhr",
+        fill="#ffffff",
+        font=font_title
+    )
+
+    # -----------------------------------------------------
+    # SPALTEN
+    # -----------------------------------------------------
+
+    columns = [
+        ("Rg", 25, "left"),
+        ("Name", 90, "left"),
+        ("Sp", 475, "center"),
+        ("S", 540, "center"),
+        ("N", 600, "center"),
+        ("L+", 670, "center"),
+        ("L-", 740, "center"),
+        ("Dif", 815, "center"),
+        ("Pkt", 900, "center"),
+    ]
+
+    header_y = title_height
+
+    # -----------------------------------------------------
+    # HEADER
+    # -----------------------------------------------------
+
+    for text, x, align in columns:
+
+        bbox = draw.textbbox(
+            (0, 0),
+            text,
+            font=font_header
         )
-        return
+
+        text_width = (
+            bbox[2] - bbox[0]
+        )
+
+        if align == "center":
+
+            draw_x = (
+                x
+                - text_width / 2
+            )
+
+        else:
+
+            draw_x = x
+
+        draw.text(
+            (draw_x, header_y),
+            text,
+            fill="#d8d8d8",
+            font=font_header
+        )
+
+    # -----------------------------------------------------
+    # TRENNLINIE
+    # -----------------------------------------------------
+
+    line_y = (
+        header_y
+        + 45
+    )
+
+    draw.line(
+        (
+            25,
+            line_y,
+            width - 25,
+            line_y
+        ),
+        fill="#55575c",
+        width=1
+    )
+
+    # -----------------------------------------------------
+    # SPIELER
+    # -----------------------------------------------------
+
+    for index, player in enumerate(table):
+
+        y = (
+            line_y
+            + 15
+            + index * row_height
+        )
+
+        values = [
+            str(index + 1),
+            player["name"],
+            str(player["spiele"]),
+            str(player["siege"]),
+            str(player["niederlagen"]),
+            str(player["legs_plus"]),
+            str(player["legs_minus"]),
+            str(player["leg_dif"]),
+            str(player["punkte"]),
+        ]
+
+        for value, (_, x, align) in zip(
+            values,
+            columns
+        ):
+
+            # Namen bei extremer Länge abschneiden
+            if len(value) > 30:
+
+                value = value[:27] + "..."
+
+            bbox = draw.textbbox(
+                (0, 0),
+                value,
+                font=font
+            )
+
+            text_width = (
+                bbox[2] - bbox[0]
+            )
+
+            if align == "center":
+
+                draw_x = (
+                    x
+                    - text_width / 2
+                )
+
+            else:
+
+                draw_x = x
+
+            draw.text(
+                (draw_x, y),
+                value,
+                fill="#eeeeee",
+                font=font
+            )
+
+    # -----------------------------------------------------
+    # IN MEMORY SPEICHERN
+    # -----------------------------------------------------
+
+    output = io.BytesIO()
+
+    image.save(
+        output,
+        format="PNG"
+    )
+
+    output.seek(0)
+
+    return output
+
+
+# =========================================================
+# TABELLENBILD SENDEN
+# =========================================================
+
+async def send_table_image(channel):
 
     table = write_table()
 
-    text = table_to_discord(table)
-
-    await channel.send(text)
-
-
-# =========================================================
-# MONATSSIEGER
-# =========================================================
-
-def archive_current_month():
-
-    now = jetzt()
-
-    year = now.year
-    month = now.month
-
-    archive_name = f"Archiv_{year}_{month:02d}"
-
-    existing_names = [
-        ws.title for ws in spreadsheet.worksheets()
-    ]
-
-    if archive_name in existing_names:
-        return archive_name
-
-    old_values = ergebnis_sheet.get_all_values()
-
-    archive_sheet = spreadsheet.add_worksheet(
-        title=archive_name,
-        rows=max(len(old_values) + 5, 10),
-        cols=8
+    image_data = create_table_image(
+        table
     )
 
-    if old_values:
-        archive_sheet.update(
-            f"A1:H{len(old_values)}",
-            old_values
+    await channel.send(
+        file=discord.File(
+            image_data,
+            filename="rangliste.png"
         )
+    )
 
-    return archive_name
 
+# =========================================================
+# MONATSARCHIV
+# =========================================================
 
-def get_previous_month_name():
+def get_previous_year_month():
 
     now = jetzt()
 
@@ -451,8 +700,69 @@ def get_previous_month_name():
     month = now.month - 1
 
     if month == 0:
+
         month = 12
         year -= 1
+
+    return year, month
+
+
+def archive_current_month():
+
+    # -----------------------------------------------------
+    # WICHTIG:
+    # Beim Reset am 01. wird der Vormonat archiviert.
+    # -----------------------------------------------------
+
+    year, month = get_previous_year_month()
+
+    archive_name = (
+        f"Archiv_{year}_{month:02d}"
+    )
+
+    existing_names = [
+        ws.title
+        for ws in spreadsheet.worksheets()
+    ]
+
+    if archive_name in existing_names:
+
+        return archive_name
+
+    old_values = (
+        ergebnis_sheet.get_all_values()
+    )
+
+    archive_sheet = (
+        spreadsheet.add_worksheet(
+            title=archive_name,
+            rows=max(
+                len(old_values) + 5,
+                10
+            ),
+            cols=8
+        )
+    )
+
+    if old_values:
+
+        archive_sheet.update(
+            values=old_values,
+            range_name=f"A1:H{len(old_values)}"
+        )
+
+    return archive_name
+
+
+# =========================================================
+# MONATSNAME
+# =========================================================
+
+def get_previous_month_name():
+
+    year, month = (
+        get_previous_year_month()
+    )
 
     months = [
         "Januar",
@@ -469,34 +779,50 @@ def get_previous_month_name():
         "Dezember",
     ]
 
-    return f"{months[month - 1]} {year}"
+    return (
+        f"{months[month - 1]} {year}"
+    )
 
+
+# =========================================================
+# VORMONATS-ARCHIV HOLEN
+# =========================================================
 
 def get_previous_month_archive():
 
-    now = jetzt()
+    year, month = (
+        get_previous_year_month()
+    )
 
-    year = now.year
-    month = now.month - 1
-
-    if month == 0:
-        month = 12
-        year -= 1
-
-    archive_name = f"Archiv_{year}_{month:02d}"
+    archive_name = (
+        f"Archiv_{year}_{month:02d}"
+    )
 
     try:
-        return spreadsheet.worksheet(archive_name)
+
+        return spreadsheet.worksheet(
+            archive_name
+        )
+
     except gspread.WorksheetNotFound:
+
         return None
 
 
-def calculate_archive_table(archive_sheet):
+# =========================================================
+# ARCHIV-TABELLE BERECHNEN
+# =========================================================
+
+def calculate_archive_table(
+    archive_sheet
+):
 
     if not archive_sheet:
         return []
 
-    rows = archive_sheet.get_all_values()
+    rows = (
+        archive_sheet.get_all_values()
+    )
 
     stats = {}
 
@@ -508,22 +834,32 @@ def calculate_archive_table(archive_sheet):
         p1 = row[0].strip()
         p2 = row[1].strip()
 
+        if not p1 or not p2:
+            continue
+
         try:
+
             legs_a = int(row[2])
             legs_b = int(row[3])
+
         except ValueError:
+
             continue
 
         winner = row[6].strip()
 
-        if not p1 or not p2:
-            continue
+        # -------------------------------------------------
+        # SPIELER
+        # -------------------------------------------------
 
         for player in [p1, p2]:
 
-            key = normalize_name(player)
+            key = normalize_name(
+                player
+            )
 
             if key not in stats:
+
                 stats[key] = {
                     "name": player,
                     "spiele": 0,
@@ -545,37 +881,51 @@ def calculate_archive_table(archive_sheet):
         stats[p2_key]["legs_plus"] += legs_b
         stats[p2_key]["legs_minus"] += legs_a
 
-        winner_key = normalize_name(winner)
+        # -------------------------------------------------
+        # SIEGER
+        # -------------------------------------------------
+
+        winner_key = normalize_name(
+            winner
+        )
 
         if winner_key == p1_key:
+
             stats[p1_key]["siege"] += 1
             stats[p2_key]["niederlagen"] += 1
 
         elif winner_key == p2_key:
+
             stats[p2_key]["siege"] += 1
             stats[p1_key]["niederlagen"] += 1
+
+    # =====================================================
+    # TABELLE
+    # =====================================================
 
     table = []
 
     for data in stats.values():
 
         leg_dif = (
-            data["legs_plus"] -
-            data["legs_minus"]
+            data["legs_plus"]
+            - data["legs_minus"]
         )
 
         punkte = data["siege"] * 3
 
-        table.append({
-            "name": data["name"],
-            "spiele": data["spiele"],
-            "siege": data["siege"],
-            "niederlagen": data["niederlagen"],
-            "legs_plus": data["legs_plus"],
-            "legs_minus": data["legs_minus"],
-            "leg_dif": leg_dif,
-            "punkte": punkte,
-        })
+        table.append(
+            {
+                "name": data["name"],
+                "spiele": data["spiele"],
+                "siege": data["siege"],
+                "niederlagen": data["niederlagen"],
+                "legs_plus": data["legs_plus"],
+                "legs_minus": data["legs_minus"],
+                "leg_dif": leg_dif,
+                "punkte": punkte,
+            }
+        )
 
     table.sort(
         key=lambda x: (
@@ -589,37 +939,55 @@ def calculate_archive_table(archive_sheet):
     return table
 
 
+# =========================================================
+# MONATSSIEGER POSTEN
+# =========================================================
+
 async def send_month_winner():
 
-    archive_sheet = get_previous_month_archive()
+    archive_sheet = (
+        get_previous_month_archive()
+    )
 
     if not archive_sheet:
+
         print(
             "⚠️ Kein Monatsarchiv gefunden.",
             flush=True
         )
+
         return
 
-    table = calculate_archive_table(archive_sheet)
+    table = calculate_archive_table(
+        archive_sheet
+    )
 
     if not table:
         return
 
     top3 = table[:3]
 
-    month_name = get_previous_month_name()
+    month_name = (
+        get_previous_month_name()
+    )
 
     text = (
-        f"🏆 **MONATSSIEGER – {month_name.upper()}**\n"
+        f"🏆 **MONATSSIEGER – "
+        f"{month_name.upper()}**\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
     )
 
-    emojis = ["🥇", "🥈", "🥉"]
+    emojis = [
+        "🥇",
+        "🥈",
+        "🥉"
+    ]
 
     for index, player in enumerate(top3):
 
         text += (
-            f"{emojis[index]} **{player['name']}**\n"
+            f"{emojis[index]} "
+            f"**{player['name']}**\n"
             f"🎮 {player['spiele']} Spiele | "
             f"🏆 {player['siege']} Siege | "
             f"💀 {player['niederlagen']} Niederlagen\n"
@@ -632,14 +1000,18 @@ async def send_month_winner():
     winner = top3[0]
 
     text += (
-        f"👑 **Monatssieger: {winner['name']}!**\n"
+        f"👑 **Monatssieger: "
+        f"{winner['name']}!**\n"
         f"⭐ **{winner['punkte']} Punkte**\n"
         "🎯 Herzlichen Glückwunsch! 🔥"
     )
 
-    channel = get_channel(INFO_CHANNEL_NAME)
+    channel = get_channel(
+        INFO_CHANNEL_NAME
+    )
 
     if channel:
+
         await channel.send(text)
 
 
@@ -649,36 +1021,60 @@ async def send_month_winner():
 
 async def monthly_reset():
 
-    print("🔄 Monatsreset wird ausgeführt...", flush=True)
+    print(
+        "🔄 Monatsreset wird ausgeführt...",
+        flush=True
+    )
 
-    # Alten Monat archivieren
+    # -----------------------------------------------------
+    # VORMONAT ARCHIVIEREN
+    # -----------------------------------------------------
+
     archive_current_month()
 
-    # Top 3 des abgeschlossenen Monats posten
+    # -----------------------------------------------------
+    # TOP 3 POSTEN
+    # -----------------------------------------------------
+
     await send_month_winner()
 
-    # Aktuelle Ergebnis-Tabelle leeren
+    # -----------------------------------------------------
+    # ERGEBNIS LEEREN
+    # -----------------------------------------------------
+
     ergebnis_sheet.clear()
 
     ergebnis_sheet.update(
-        "A1:H1",
-        [ERGEBNIS_HEADER]
+        values=[ERGEBNIS_HEADER],
+        range_name="A1:H1"
     )
 
-    # Tabellen zurücksetzen
+    # -----------------------------------------------------
+    # TABELLE LEEREN
+    # -----------------------------------------------------
+
     tabelle_sheet.clear()
+
     tabelle_sheet.update(
-        "A1:I1",
-        [TABELLE_HEADER]
+        values=[TABELLE_HEADER],
+        range_name="A1:I1"
     )
+
+    # -----------------------------------------------------
+    # TABELLE FINAL LEEREN
+    # -----------------------------------------------------
 
     final_sheet.clear()
+
     final_sheet.update(
-        "A1:I1",
-        [TABELLE_HEADER]
+        values=[TABELLE_HEADER],
+        range_name="A1:I1"
     )
 
-    print("✅ Monatsreset abgeschlossen.", flush=True)
+    print(
+        "✅ Monatsreset abgeschlossen.",
+        flush=True
+    )
 
 
 # =========================================================
@@ -697,39 +1093,67 @@ async def scheduler():
 
     now = jetzt()
 
-    current_month = now.strftime("%Y-%m")
+    current_month = (
+        now.strftime("%Y-%m")
+    )
 
-    # -----------------------------------------------------
+    # =====================================================
     # MONATSRESET
-    # -----------------------------------------------------
+    # =====================================================
 
-    if now.day == 1 and now.hour == 0 and now.minute == 0:
+    if (
+        now.day == 1
+        and now.hour == 0
+        and now.minute == 0
+    ):
 
-        if last_reset_month != current_month:
+        if (
+            last_reset_month
+            != current_month
+        ):
 
             await monthly_reset()
 
-            last_reset_month = current_month
+            last_reset_month = (
+                current_month
+            )
 
             await asyncio.sleep(2)
 
             return
 
-    # -----------------------------------------------------
-    # TABELLE 08 / 12 / 18 / 22 UHR
-    # -----------------------------------------------------
+    # =====================================================
+    # TABELLE 08 / 12 / 18 / 22
+    # =====================================================
 
-    update_hours = {8, 12, 18, 22}
+    update_hours = {
+        8,
+        12,
+        18,
+        22
+    }
 
-    if now.hour in update_hours and now.minute == 0:
+    if (
+        now.hour in update_hours
+        and now.minute == 0
+    ):
 
-        update_key = now.strftime("%Y-%m-%d-%H")
+        update_key = (
+            now.strftime(
+                "%Y-%m-%d-%H"
+            )
+        )
 
-        if last_table_update != update_key:
+        if (
+            last_table_update
+            != update_key
+        ):
 
             await update_discord_table()
 
-            last_table_update = update_key
+            last_table_update = (
+                update_key
+            )
 
 
 # =========================================================
@@ -739,91 +1163,171 @@ async def scheduler():
 @bot.event
 async def on_ready():
 
-    print(f"🤖 Mad Dog online: {bot.user}", flush=True)
+    print(
+        f"🤖 Mad Dog online: {bot.user}",
+        flush=True
+    )
 
     ensure_headers()
 
     if not scheduler.is_running():
+
         scheduler.start()
 
-    print("✅ Ranglisten-System bereit.", flush=True)
+    print(
+        "✅ Ranglisten-System bereit.",
+        flush=True
+    )
 
 
 # =========================================================
-# MATCH ERGEBNIS
+# MATCH-ERGEBNIS
 # =========================================================
 
 @bot.event
 async def on_message(message):
 
+    # -----------------------------------------------------
+    # BOT-NACHRICHTEN IGNORIEREN
+    # -----------------------------------------------------
+
     if message.author.bot:
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # MATCH-KANAL
-    # -----------------------------------------------------
+    # =====================================================
 
-    if message.channel.name == MATCH_CHANNEL_NAME:
+    if (
+        message.channel.name
+        == MATCH_CHANNEL_NAME
+    ):
 
-        mentions = message.mentions
+        content = message.content.strip()
 
         # -------------------------------------------------
-        # KEINE / FALSCHE MENTIONS
+        # MENTIONS AUS ORIGINALNACHRICHT LESEN
         # -------------------------------------------------
 
-        if len(mentions) != 2:
+        mention_matches = re.findall(
+            r"<@!?(\d+)>",
+            content
+        )
+
+        # -------------------------------------------------
+        # GENAU 2 SPIELER
+        # -------------------------------------------------
+
+        if len(mention_matches) != 2:
 
             await message.channel.send(
-                "Ohne @ bin ich blind. Ich bin ein Bot, kein Hellseher 🔮\n"
+                "Ohne @ bin ich blind. "
+                "Ich bin ein Bot, kein Hellseher 🔮\n"
                 "⚠️ **Bitte Spieler mit @ markieren!**\n"
-                "Beispiel: `@spieler vs @spieler 3:2`"
+                "Beispiel: "
+                "`@spieler vs @spieler 3:2`"
             )
 
             return
 
-        mention_matches = re.findall(r"<@!?(\d+)>", message.content)
+        # -------------------------------------------------
+        # SPIELER HOLEN
+        # -------------------------------------------------
 
-        player_a = bot.get_user(int(mention_matches[0]))
-        player_b = bot.get_user(int(mention_matches[1]))
+        player_a = bot.get_user(
+            int(mention_matches[0])
+        )
+
+        player_b = bot.get_user(
+            int(mention_matches[1])
+        )
+
+        # Falls nicht im Cache
+        if player_a is None:
+
+            player_a = message.guild.get_member(
+                int(mention_matches[0])
+            )
+
+        if player_b is None:
+
+            player_b = message.guild.get_member(
+                int(mention_matches[1])
+            )
+
+        if player_a is None or player_b is None:
+
+            await message.channel.send(
+                "⚠️ **Spieler konnte nicht gefunden werden.**"
+            )
+
+            return
+
+        # -------------------------------------------------
+        # GLEICHER SPIELER
+        # -------------------------------------------------
 
         if player_a.id == player_b.id:
 
             await message.channel.send(
-                "⚠️ **Ein Spieler kann nicht gegen sich selbst spielen.**"
+                "⚠️ **Ein Spieler kann nicht "
+                "gegen sich selbst spielen.**"
             )
 
             return
 
-        # -------------------------------------------------
-        # SCORE AUS NACHRICHT LESEN
-        # -------------------------------------------------
+        # =================================================
+        # FORMAT PRÜFEN
+        # =================================================
 
-        score_match = re.search(
-            r"(\d+)\s*[:\-]\s*(\d+)",
-            message.content
+        format_match = re.search(
+            r"<@!?\d+>\s+vs\s+<@!?\d+>\s+(\d+)\s*[:\-]\s*(\d+)",
+            content,
+            re.IGNORECASE
         )
 
-        if not score_match:
+        if not format_match:
 
             await message.channel.send(
-                "⚠️ **Ergebnis nicht erkannt!**\n"
-                "Beispiel: `@spieler vs @spieler 3:2`"
+                "⚠️ **Bitte genau dieses Format verwenden:**\n"
+                "`@spieler vs @spieler 3:2`"
             )
 
             return
 
-        legs_a = int(score_match.group(1))
-        legs_b = int(score_match.group(2))
+        # -------------------------------------------------
+        # SCORE
+        # -------------------------------------------------
+
+        legs_a = int(
+            format_match.group(1)
+        )
+
+        legs_b = int(
+            format_match.group(2)
+        )
+
+        # -------------------------------------------------
+        # UNENTSCHIEDEN
+        # -------------------------------------------------
 
         if legs_a == legs_b:
 
             await message.channel.send(
-                "⚠️ **Ein Unentschieden ist bei der Rangliste nicht möglich.**"
+                "⚠️ **Ein Unentschieden ist "
+                "bei der Rangliste nicht möglich.**"
             )
 
             return
 
-        if legs_a > 20 or legs_b > 20:
+        # -------------------------------------------------
+        # MAXIMUM
+        # -------------------------------------------------
+
+        if (
+            legs_a > 20
+            or legs_b > 20
+        ):
 
             await message.channel.send(
                 "⚠️ **Das Ergebnis ist ungültig.**"
@@ -831,20 +1335,29 @@ async def on_message(message):
 
             return
 
-        # -------------------------------------------------
+        # =================================================
         # SIEGER
-        # -------------------------------------------------
+        # =================================================
 
         if legs_a > legs_b:
+
             winner = player_a
+
         else:
+
             winner = player_b
 
-        # -------------------------------------------------
-        # IN GOOGLE SHEETS SPEICHERN
-        # -------------------------------------------------
+        # =================================================
+        # DATUM
+        # =================================================
 
-        datum = jetzt().strftime("%Y-%m-%d %H:%M:%S")
+        datum = jetzt().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
+        # =================================================
+        # GOOGLE SHEETS
+        # =================================================
 
         ergebnis_sheet.append_row(
             [
@@ -860,25 +1373,23 @@ async def on_message(message):
             value_input_option="USER_ENTERED"
         )
 
-        # -------------------------------------------------
-        # TABELLE AKTUALISIEREN
-        # -------------------------------------------------
+        # =================================================
+        # TABELLE NEU BERECHNEN
+        # =================================================
 
         write_table()
 
-        # -------------------------------------------------
-        # DISCORD MELDUNG
-        # -------------------------------------------------
+        # =================================================
+        # MATCH UPDATE
+        # =================================================
 
         await message.channel.send(
             f"📊 **Match Update:**\n"
-            f"{player_a.mention} vs {player_b.mention}\n\n"
-            f"🏆 **Sieger: {winner.mention} ({legs_a}:{legs_b})**"
-            if winner == player_a
-            else
-            f"📊 **Match Update:**\n"
-            f"{player_a.mention} vs {player_b.mention}\n\n"
-            f"🏆 **Sieger: {winner.mention} ({legs_a}:{legs_b})**"
+            f"{player_a.mention} vs "
+            f"{player_b.mention}\n\n"
+            f"🏆 **Sieger: "
+            f"{winner.mention} "
+            f"({legs_a}:{legs_b})**"
         )
 
         return
@@ -887,68 +1398,90 @@ async def on_message(message):
     # ADMIN COMMANDS
     # =====================================================
 
-    if message.content.lower().startswith(("!hilfe", "!tabelle", "!undo")):
+    command = message.content.strip().lower()
 
-        # Nur Admin-Chat
-        if message.channel.name != ADMIN_CHANNEL_NAME:
+    if command in (
+        "!hilfe",
+        "!tabelle",
+        "!undo"
+    ):
+
+        # -------------------------------------------------
+        # NUR ADMIN-CHAT
+        # -------------------------------------------------
+
+        if (
+            message.channel.name
+            != ADMIN_CHANNEL_NAME
+        ):
             return
 
-        # Nur Admins
-        if not is_admin(message.author):
+        # -------------------------------------------------
+        # NUR ADMINS
+        # -------------------------------------------------
+
+        if not is_admin(
+            message.author
+        ):
             return
 
-    # -----------------------------------------------------
+    # =====================================================
     # HILFE
-    # -----------------------------------------------------
+    # =====================================================
 
-    if message.content.lower() == "!hilfe":
+    if command == "!hilfe":
 
         await message.channel.send(
             "🛠️ **Mad Dog – Admin Hilfe**\n\n"
             "`!tabelle` – aktuelle Rangliste anzeigen\n"
-            "`!undo` – letztes Ergebnis löschen"
+            "`!undo` – letztes Ergebnis löschen\n"
+            "`!hilfe` – diese Hilfe anzeigen"
         )
 
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # TABELLE
-    # -----------------------------------------------------
+    # =====================================================
 
-    if message.content.lower() == "!tabelle":
+    if command == "!tabelle":
 
-        table = write_table()
-
-        await message.channel.send(
-            table_to_discord(table)
+        await send_table_image(
+            message.channel
         )
 
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # UNDO
-    # -----------------------------------------------------
+    # =====================================================
 
-    if message.content.lower() == "!undo":
+    if command == "!undo":
 
-        rows = ergebnis_sheet.get_all_values()
+        rows = (
+            ergebnis_sheet.get_all_values()
+        )
 
         if len(rows) <= 1:
 
             await message.channel.send(
-                "⚠️ Es gibt kein Ergebnis zum Löschen."
+                "⚠️ **Es gibt kein Ergebnis "
+                "zum Löschen.**"
             )
 
             return
 
         last_row = len(rows)
 
-        deleted = rows[last_row - 1]
+        deleted = rows[
+            last_row - 1
+        ]
 
         if len(deleted) < 7:
 
             await message.channel.send(
-                "⚠️ Das letzte Ergebnis konnte nicht gelesen werden."
+                "⚠️ **Das letzte Ergebnis "
+                "konnte nicht gelesen werden.**"
             )
 
             return
@@ -958,14 +1491,31 @@ async def on_message(message):
         legs_a = deleted[2]
         legs_b = deleted[3]
 
-        ergebnis_sheet.delete_rows(last_row)
+        # -------------------------------------------------
+        # LETZTE ZEILE LÖSCHEN
+        # -------------------------------------------------
+
+        ergebnis_sheet.delete_rows(
+            last_row
+        )
+
+        # -------------------------------------------------
+        # TABELLE NEU BERECHNEN
+        # -------------------------------------------------
 
         write_table()
 
+        # -------------------------------------------------
+        # BESTÄTIGUNG
+        # -------------------------------------------------
+
         await message.channel.send(
             f"🗑️ **Letztes Ergebnis gelöscht!**\n\n"
-            f"**{player_a} {legs_a}:{legs_b} {player_b}**\n\n"
-            f"✅ Die Rangliste wurde neu berechnet."
+            f"**{player_a} "
+            f"{legs_a}:{legs_b} "
+            f"{player_b}**\n\n"
+            f"✅ Die Rangliste wurde "
+            f"neu berechnet."
         )
 
         return
@@ -975,7 +1525,11 @@ async def on_message(message):
 # START
 # =========================================================
 
-print("🚀 MAD DOG RANGLISTE STARTET...", flush=True)
+print(
+    "🚀 MAD DOG RANGLISTE STARTET...",
+    flush=True
+)
+
 print(
     f"TOKEN VORHANDEN: {bool(TOKEN)}",
     flush=True
