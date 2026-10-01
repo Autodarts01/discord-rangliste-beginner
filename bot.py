@@ -478,21 +478,14 @@ def get_font(size, bold=False):
 
 def create_table_image(table):
 
-    # -----------------------------------------------------
-    # BILDGRÖSSE
-    # -----------------------------------------------------
+    width = 1100
 
-    width = 1600
+    title_height = 100
+    header_height = 85
+    row_height = 90
+    bottom_space = 30
 
-    title_height = 110
-    header_height = 90
-    row_height = 85
-    bottom_space = 35
-
-    number_of_rows = max(
-        len(table),
-        1
-    )
+    number_of_rows = max(len(table), 1)
 
     height = (
         title_height
@@ -500,10 +493,6 @@ def create_table_image(table):
         + number_of_rows * row_height
         + bottom_space
     )
-
-    # -----------------------------------------------------
-    # BILD
-    # -----------------------------------------------------
 
     image = Image.new(
         "RGB",
@@ -517,9 +506,9 @@ def create_table_image(table):
     # SCHRIFTEN
     # -----------------------------------------------------
 
-    font_title = get_font(42)
-    font_header = get_font(34)
-    font = get_font(32)
+    font_title = get_font(38)
+    font_header = get_font(30)
+    font = get_font(30)
 
     # -----------------------------------------------------
     # TITEL
@@ -530,8 +519,8 @@ def create_table_image(table):
     )
 
     draw.text(
-        (45, 30),
-        f"🏆 Rangliste – {datum} Uhr",
+        (30, 25),
+        f"Aktuelle Rangliste – {datum} Uhr",
         fill="#ffffff",
         font=font_title
     )
@@ -541,15 +530,15 @@ def create_table_image(table):
     # -----------------------------------------------------
 
     columns = [
-        ("Rg", 60, "center"),
+        ("Rg", 55, "center"),
         ("Name", 180, "left"),
-        ("Sp", 760, "center"),
-        ("S", 850, "center"),
-        ("N", 930, "center"),
-        ("L+", 1030, "center"),
-        ("L-", 1130, "center"),
-        ("Dif", 1240, "center"),
-        ("Pkt", 1370, "center"),
+        ("Sp", 620, "center"),
+        ("S", 700, "center"),
+        ("N", 775, "center"),
+        ("L+", 850, "center"),
+        ("L-", 925, "center"),
+        ("Dif", 1000, "center"),
+        ("Pkt", 1070, "center"),
     ]
 
     header_y = title_height
@@ -566,25 +555,17 @@ def create_table_image(table):
             font=font_header
         )
 
-        text_width = (
-            bbox[2] - bbox[0]
-        )
+        text_width = bbox[2] - bbox[0]
 
         if align == "center":
-
-            draw_x = (
-                x
-                - text_width / 2
-            )
-
+            draw_x = x - text_width / 2
         else:
-
             draw_x = x
 
         draw.text(
-            (draw_x, header_y),
+            (draw_x, header_y + 20),
             text,
-            fill="#d8d8d8",
+            fill="#ffffff",
             font=font_header
         )
 
@@ -592,19 +573,14 @@ def create_table_image(table):
     # TRENNLINIE
     # -----------------------------------------------------
 
-    line_y = (
-        header_y
-        + 65
-    )
-
     draw.line(
         (
-            40,
-            line_y,
-            width - 40,
-            line_y
+            20,
+            header_y + header_height - 5,
+            width - 20,
+            header_y + header_height - 5
         ),
-        fill="#55575c",
+        fill="#666666",
         width=2
     )
 
@@ -615,14 +591,15 @@ def create_table_image(table):
     for index, player in enumerate(table):
 
         y = (
-            line_y
-            + 20
+            title_height
+            + header_height
             + index * row_height
+            + 18
         )
 
         values = [
             str(index + 1),
-            player["name"],
+            str(player["name"]),
             str(player["spiele"]),
             str(player["siege"]),
             str(player["niederlagen"]),
@@ -632,21 +609,10 @@ def create_table_image(table):
             str(player["punkte"]),
         ]
 
-        for value, (_, x, align) in zip(
-            values,
-            columns
+        for (text, x, align), value in zip(
+            columns,
+            values
         ):
-
-            # -------------------------------------------------
-            # NAMEN BEGRENZEN
-            # -------------------------------------------------
-
-            if len(value) > 24:
-
-                value = (
-                    value[:21]
-                    + "..."
-                )
 
             bbox = draw.textbbox(
                 (0, 0),
@@ -654,30 +620,37 @@ def create_table_image(table):
                 font=font
             )
 
-            text_width = (
-                bbox[2] - bbox[0]
-            )
+            text_width = bbox[2] - bbox[0]
 
             if align == "center":
-
-                draw_x = (
-                    x
-                    - text_width / 2
-                )
-
+                draw_x = x - text_width / 2
             else:
-
                 draw_x = x
 
             draw.text(
                 (draw_x, y),
                 value,
-                fill="#eeeeee",
+                fill="#ffffff",
                 font=font
             )
 
+        # -------------------------------------------------
+        # TRENNLINIE SPIELER
+        # -------------------------------------------------
+
+        draw.line(
+            (
+                20,
+                y + row_height - 15,
+                width - 20,
+                y + row_height - 15
+            ),
+            fill="#444444",
+            width=1
+        )
+
     # -----------------------------------------------------
-    # BILD SPEICHERN
+    # PNG
     # -----------------------------------------------------
 
     output = io.BytesIO()
