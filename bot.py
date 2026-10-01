@@ -1043,7 +1043,46 @@ async def monthly_reset():
     # -----------------------------------------------------
 
     await send_month_winner()
-    
+
+    # -----------------------------------------------------
+    # ERGEBNIS LEEREN
+    # -----------------------------------------------------
+
+    ergebnis_sheet.clear()
+
+    ergebnis_sheet.update(
+        values=[ERGEBNIS_HEADER],
+        range_name="A1:H1"
+    )
+
+    # -----------------------------------------------------
+    # TABELLE LEEREN
+    # -----------------------------------------------------
+
+    tabelle_sheet.clear()
+
+    tabelle_sheet.update(
+        values=[TABELLE_HEADER],
+        range_name="A1:I1"
+    )
+
+    # -----------------------------------------------------
+    # TABELLE FINAL LEEREN
+    # -----------------------------------------------------
+
+    final_sheet.clear()
+
+    final_sheet.update(
+        values=[TABELLE_HEADER],
+        range_name="A1:I1"
+    )
+
+    print(
+        "✅ Monatsreset abgeschlossen.",
+        flush=True
+    )
+
+
 # =========================================================
 # TEST-MONATSSIEGER
 # =========================================================
@@ -1107,44 +1146,6 @@ async def send_test_month_winner(table):
     if channel:
         await channel.send(text)
 
-    # -----------------------------------------------------
-    # ERGEBNIS LEEREN
-    # -----------------------------------------------------
-
-    ergebnis_sheet.clear()
-
-    ergebnis_sheet.update(
-        values=[ERGEBNIS_HEADER],
-        range_name="A1:H1"
-    )
-
-    # -----------------------------------------------------
-    # TABELLE LEEREN
-    # -----------------------------------------------------
-
-    tabelle_sheet.clear()
-
-    tabelle_sheet.update(
-        values=[TABELLE_HEADER],
-        range_name="A1:I1"
-    )
-
-    # -----------------------------------------------------
-    # TABELLE FINAL LEEREN
-    # -----------------------------------------------------
-
-    final_sheet.clear()
-
-    final_sheet.update(
-        values=[TABELLE_HEADER],
-        range_name="A1:I1"
-    )
-
-    print(
-        "✅ Monatsreset abgeschlossen.",
-        flush=True
-    )
-
 
 # =========================================================
 # ZEITPLAN
@@ -1162,9 +1163,7 @@ async def scheduler():
 
     now = jetzt()
 
-    current_month = (
-        now.strftime("%Y-%m")
-    )
+    current_month = now.strftime("%Y-%m")
 
     # =====================================================
     # MONATSRESET 00:00
@@ -1180,9 +1179,7 @@ async def scheduler():
 
             await monthly_reset()
 
-            last_reset_month = (
-                current_month
-            )
+            last_reset_month = current_month
 
             await asyncio.sleep(2)
 
@@ -1204,19 +1201,15 @@ async def scheduler():
         and now.minute == 0
     ):
 
-        update_key = (
-            now.strftime(
-                "%Y-%m-%d-%H"
-            )
+        update_key = now.strftime(
+            "%Y-%m-%d-%H"
         )
 
         if last_table_update != update_key:
 
             await update_discord_table()
 
-            last_table_update = (
-                update_key
-            )
+            last_table_update = update_key
 
 
 # =========================================================
