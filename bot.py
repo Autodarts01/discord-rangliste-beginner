@@ -530,16 +530,16 @@ def create_table_image(table):
     # -----------------------------------------------------
 
     columns = [
-        ("Rg", 55, "center"),
-        ("Name", 180, "left"),
-        ("Sp", 620, "center"),
-        ("S", 700, "center"),
-        ("N", 775, "center"),
-        ("L+", 850, "center"),
-        ("L-", 925, "center"),
-        ("Dif", 1000, "center"),
-        ("Pkt", 1070, "center"),
-    ]
+    ("Rg", 45, "center"),
+    ("Name", 150, "left"),
+    ("Sp", 570, "center"),
+    ("S", 650, "center"),
+    ("N", 720, "center"),
+    ("L+", 810, "center"),
+    ("L-", 900, "center"),
+    ("Dif", 1000, "center"),
+    ("Pkt", 1120, "center"),
+]
 
     header_y = title_height
 
