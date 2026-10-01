@@ -24,7 +24,7 @@ TZ = ZoneInfo("Europe/Vienna")
 MATCH_CHANNEL_NAME = "match-ergebnisse"
 TABLE_CHANNEL_NAME = "ranglisten-tabelle"
 INFO_CHANNEL_NAME = "ranglisten-info"
-ADMIN_CHANNEL_NAME = "Admin-Chat"
+ADMIN_CHANNEL_NAME = "admin-chat"
 
 
 # =========================================================
