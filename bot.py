@@ -1485,85 +1485,76 @@ async def on_message(message):
         ):
             return
             
-    # -----------------------------------------------------
-    # TEMPORÄRER MONATSRESET-TEST
-    # -----------------------------------------------------
+# -----------------------------------------------------
+# TEMPORÄRER MONATSRESET-TEST
+# -----------------------------------------------------
 
-    if command == "!resettest":
+if command == "!resettest":
 
-        print("🧪 TEST-MONATSRESET wird ausgeführt...", flush=True)
+    print(
+        "🧪 TEST-MONATSRESET wird ausgeführt...",
+        flush=True
+    )
 
-        archive_name = archive_current_month()
+    # Aktuellen Monat nur auswerten
+    # NICHT löschen und NICHT zurücksetzen
+    table = calculate_table()
 
-        archive_sheet = spreadsheet.worksheet(archive_name)
-        table = calculate_archive_table(archive_sheet)
+    if table:
 
-        if table:
-            top3 = table[:3]
+        top3 = table[:3]
 
-            text = (
-                "🧪 **TEST – MONATSSIEGER**\n"
-                "━━━━━━━━━━━━━━━━━━━━\n\n"
-            )
+        text = (
+            "🧪 **TEST – MONATSSIEGER**\n"
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+        )
 
-            emojis = ["🥇", "🥈", "🥉"]
+        emojis = ["🥇", "🥈", "🥉"]
 
-            for index, player in enumerate(top3):
-
-                text += (
-                    f"{emojis[index]} **{player['name']}**\n"
-                    f"🎮 {player['spiele']} Spiele | "
-                    f"🏆 {player['siege']} Siege | "
-                    f"💀 {player['niederlagen']} Niederlagen\n"
-                    f"🎯 Legs +{player['legs_plus']} | "
-                    f"📉 Legs -{player['legs_minus']} | "
-                    f"📊 Diff {player['leg_dif']}\n"
-                    f"⭐ **{player['punkte']} Punkte**\n\n"
-                )
-
-            winner = top3[0]
+        for index, player in enumerate(top3):
 
             text += (
-                f"👑 **Monatssieger: {winner['name']}!**\n"
-                f"⭐ **{winner['punkte']} Punkte**\n"
-                "🎯 Herzlichen Glückwunsch! 🔥"
+                f"{emojis[index]} **{player['name']}**\n"
+                f"🎮 {player['spiele']} Spiele | "
+                f"🏆 {player['siege']} Siege | "
+                f"💀 {player['niederlagen']} Niederlagen\n"
+                f"🎯 Legs +{player['legs_plus']} | "
+                f"📉 Legs -{player['legs_minus']} | "
+                f"📊 Diff {player['leg_dif']}\n"
+                f"⭐ **{player['punkte']} Punkte**\n\n"
             )
 
-            info_channel = get_channel(INFO_CHANNEL_NAME)
+        winner = top3[0]
 
-            if info_channel:
-                await info_channel.send(text)
-
-        else:
-            await message.channel.send(
-                "⚠️ Keine Ergebnisse im aktuellen Monat vorhanden."
-            )
-
-        ergebnis_sheet.clear()
-        ergebnis_sheet.update(
-            "A1:H1",
-            [ERGEBNIS_HEADER]
+        text += (
+            f"👑 **Monatssieger: {winner['name']}!**\n"
+            f"⭐ **{winner['punkte']} Punkte**\n"
+            "🎯 Herzlichen Glückwunsch! 🔥"
         )
 
-        tabelle_sheet.clear()
-        tabelle_sheet.update(
-            "A1:I1",
-            [TABELLE_HEADER]
-        )
+        info_channel = get_channel(INFO_CHANNEL_NAME)
 
-        final_sheet.clear()
-        final_sheet.update(
-            "A1:I1",
-            [TABELLE_HEADER]
-        )
+        if info_channel:
+            await info_channel.send(text)
+
+    else:
 
         await message.channel.send(
-            "🧪 **Test-Monatsreset abgeschlossen.**\n"
-            f"📦 Archiv: `{archive_name}`\n"
-            "🔄 Aktuelle Rangliste wurde zurückgesetzt."
+            "⚠️ Keine Ergebnisse im aktuellen Monat vorhanden."
         )
 
-        return
+    # -----------------------------------------------------
+    # WICHTIG:
+    # BEIM TEST NICHTS LÖSCHEN!
+    # -----------------------------------------------------
+
+    await message.channel.send(
+        "🧪 **Test-Monatsreset abgeschlossen.**\n"
+        "✅ Die aktuelle Rangliste und Ergebnisse wurden "
+        "**nicht verändert**."
+    )
+
+    return
 
     # =====================================================
     # HILFE
