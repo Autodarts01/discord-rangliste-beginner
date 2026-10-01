@@ -825,7 +825,7 @@ async def on_message(message):
         if legs_a > legs_b:
             winner = player_a
         else:
-            winner = player_b
+            winner = player_a
 
         # -------------------------------------------------
         # IN GOOGLE SHEETS SPEICHERN
