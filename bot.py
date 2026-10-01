@@ -482,7 +482,7 @@ def create_table_image(table):
 
     title_height = 90
     header_height = 65
-    row_height = 55
+    row_height = 48
     bottom_space = 20
 
     number_of_rows = max(len(table), 1)
