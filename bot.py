@@ -722,7 +722,6 @@ def get_previous_year_month():
     month = now.month - 1
 
     if month == 0:
-
         month = 12
         year -= 1
 
@@ -1044,6 +1043,69 @@ async def monthly_reset():
     # -----------------------------------------------------
 
     await send_month_winner()
+    
+# =========================================================
+# TEST-MONATSSIEGER
+# =========================================================
+
+async def send_test_month_winner(table):
+
+    if not table:
+        return
+
+    top3 = table[:3]
+
+    now = jetzt()
+
+    months = [
+        "Januar",
+        "Februar",
+        "März",
+        "April",
+        "Mai",
+        "Juni",
+        "Juli",
+        "August",
+        "September",
+        "Oktober",
+        "November",
+        "Dezember",
+    ]
+
+    month_name = f"{months[now.month - 1]} {now.year}"
+
+    text = (
+        f"🏆 **MONATSSIEGER – {month_name.upper()}**\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+    )
+
+    emojis = ["🥇", "🥈", "🥉"]
+
+    for index, player in enumerate(top3):
+
+        text += (
+            f"{emojis[index]} **{player['name']}**\n"
+            f"🎮 {player['spiele']} Spiele | "
+            f"🏆 {player['siege']} Siege | "
+            f"💀 {player['niederlagen']} Niederlagen\n"
+            f"🎯 Legs +{player['legs_plus']} | "
+            f"📉 Legs -{player['legs_minus']} | "
+            f"📊 Diff {player['leg_dif']}\n"
+            f"⭐ **{player['punkte']} Punkte**\n\n"
+        )
+
+    winner = top3[0]
+
+    text += (
+        f"👑 **Monatssieger: {winner['name']}!**\n"
+        f"⭐ **{winner['punkte']} Punkte**\n"
+        "🎯 Herzlichen Glückwunsch! 🔥"
+    )
+
+    channel = get_channel(INFO_CHANNEL_NAME)
+
+    if channel:
+        await channel.send(text)
 
     # -----------------------------------------------------
     # ERGEBNIS LEEREN
@@ -1405,8 +1467,11 @@ async def on_message(message):
     if command in (
         "!hilfe",
         "!tabelle",
-        "!undo"
+        "!undo",
+        "!resettest"
     ):
+    
+    
 
         # -------------------------------------------------
         # NUR ADMIN-CHAT
@@ -1426,6 +1491,86 @@ async def on_message(message):
             message.author
         ):
             return
+            
+    # -----------------------------------------------------
+    # TEMPORÄRER MONATSRESET-TEST
+    # -----------------------------------------------------
+
+    if command == "!resettest":
+
+        print("🧪 TEST-MONATSRESET wird ausgeführt...", flush=True)
+
+        archive_name = archive_current_month()
+
+        archive_sheet = spreadsheet.worksheet(archive_name)
+        table = calculate_archive_table(archive_sheet)
+
+        if table:
+            top3 = table[:3]
+
+            text = (
+                "🧪 **TEST – MONATSSIEGER**\n"
+                "━━━━━━━━━━━━━━━━━━━━\n\n"
+            )
+
+            emojis = ["🥇", "🥈", "🥉"]
+
+            for index, player in enumerate(top3):
+
+                text += (
+                    f"{emojis[index]} **{player['name']}**\n"
+                    f"🎮 {player['spiele']} Spiele | "
+                    f"🏆 {player['siege']} Siege | "
+                    f"💀 {player['niederlagen']} Niederlagen\n"
+                    f"🎯 Legs +{player['legs_plus']} | "
+                    f"📉 Legs -{player['legs_minus']} | "
+                    f"📊 Diff {player['leg_dif']}\n"
+                    f"⭐ **{player['punkte']} Punkte**\n\n"
+                )
+
+            winner = top3[0]
+
+            text += (
+                f"👑 **Monatssieger: {winner['name']}!**\n"
+                f"⭐ **{winner['punkte']} Punkte**\n"
+                "🎯 Herzlichen Glückwunsch! 🔥"
+            )
+
+            info_channel = get_channel(INFO_CHANNEL_NAME)
+
+            if info_channel:
+                await info_channel.send(text)
+
+        else:
+            await message.channel.send(
+                "⚠️ Keine Ergebnisse im aktuellen Monat vorhanden."
+            )
+
+        ergebnis_sheet.clear()
+        ergebnis_sheet.update(
+            "A1:H1",
+            [ERGEBNIS_HEADER]
+        )
+
+        tabelle_sheet.clear()
+        tabelle_sheet.update(
+            "A1:I1",
+            [TABELLE_HEADER]
+        )
+
+        final_sheet.clear()
+        final_sheet.update(
+            "A1:I1",
+            [TABELLE_HEADER]
+        )
+
+        await message.channel.send(
+            "🧪 **Test-Monatsreset abgeschlossen.**\n"
+            f"📦 Archiv: `{archive_name}`\n"
+            "🔄 Aktuelle Rangliste wurde zurückgesetzt."
+        )
+
+        return
 
     # =====================================================
     # HILFE
@@ -1433,14 +1578,14 @@ async def on_message(message):
 
     if command == "!hilfe":
 
-        await message.channel.send(
-            "🛠️ **Mad Dog – Admin Hilfe**\n\n"
-            "`!tabelle` – aktuelle Rangliste anzeigen\n"
-            "`!undo` – letztes Ergebnis löschen\n"
-            "`!hilfe` – diese Hilfe anzeigen"
-        )
+    await message.channel.send(
+        "🛠️ **Mad Dog – Admin Hilfe**\n\n"
+        "`!tabelle` – aktuelle Rangliste anzeigen\n"
+        "`!undo` – letztes Ergebnis löschen\n"
+        "`!resettest` – Monatsreset testen"
+    )
 
-        return
+    return
 
     # =====================================================
     # TABELLE
