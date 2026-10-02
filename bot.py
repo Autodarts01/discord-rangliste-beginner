@@ -507,8 +507,8 @@ def create_table_image(table):
     # -----------------------------------------------------
 
     font_title = get_font(38)
-    font_header = get_font(45)
-    font = get_font(45)
+    font_header = get_font(34)
+    font = get_font(34)
 
     # -----------------------------------------------------
     # TITEL
