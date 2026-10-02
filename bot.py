@@ -477,122 +477,191 @@ def get_font(size, bold=False):
 # =========================================================
 
 def create_table_image(table):
-    width = 1100
 
-    title_height = 90
-    header_height = 65
-    row_height = 48
-    bottom_space = 20
+    # =====================================================
+    # EINSTELLUNGEN
+    # =====================================================
 
-    number_of_rows = max(len(table), 1)
+    FONT_SIZE = 16
+    TITLE_FONT_SIZE = 18
+
+    PADDING = 16
+    ROW_HEIGHT = 24
+
+    BG_COLOR = (44, 47, 51)
+    HEADER_COLOR = (255, 255, 255)
+    ROW_COLOR = (220, 220, 220)
+    ALT_ROW_COLOR = (180, 180, 180)
+    SEP_COLOR = (100, 100, 100)
+    TITLE_COLOR = (255, 255, 255)
+
+    # =====================================================
+    # SCHRIFT LADEN
+    # =====================================================
+
+    import urllib.request
+
+    font_file = "/tmp/mono.ttf"
+
+    if not os.path.exists(font_file):
+        try:
+            urllib.request.urlretrieve(
+                "https://github.com/google/fonts/raw/main/apache/roboto/static/RobotoMono-Regular.ttf",
+                font_file
+            )
+        except Exception:
+            font_file = None
+
+    try:
+        if font_file:
+            font = ImageFont.truetype(
+                font_file,
+                FONT_SIZE
+            )
+
+            title_font = ImageFont.truetype(
+                font_file,
+                TITLE_FONT_SIZE
+            )
+        else:
+            font = ImageFont.load_default()
+            title_font = font
+
+    except Exception:
+        font = ImageFont.load_default()
+        title_font = font
+
+    # =====================================================
+    # SPALTEN
+    # =====================================================
+
+    columns = [
+        "Rg",
+        "Name",
+        "Sp",
+        "S",
+        "N",
+        "L+",
+        "L-",
+        "Dif",
+        "Pkt"
+    ]
+
+    column_widths = [
+        35,
+        180,
+        35,
+        35,
+        35,
+        45,
+        45,
+        45,
+        45
+    ]
+
+    width = (
+        sum(column_widths)
+        + PADDING * 2
+    )
+
+    # =====================================================
+    # HÖHE
+    # =====================================================
+
+    number_of_rows = len(table)
 
     height = (
-        title_height
-        + header_height
-        + number_of_rows * row_height
-        + bottom_space
+        PADDING
+        + 30
+        + ROW_HEIGHT
+        + 4
+        + (number_of_rows * ROW_HEIGHT)
+        + PADDING
     )
+
+    # =====================================================
+    # BILD ERSTELLEN
+    # =====================================================
 
     image = Image.new(
         "RGB",
         (width, height),
-        "#292b2f"
+        BG_COLOR
     )
 
     draw = ImageDraw.Draw(image)
 
-    # -----------------------------------------------------
-    # SCHRIFTEN
-    # -----------------------------------------------------
+    y = PADDING
 
-    font_title = get_font(45)
-    font_header = get_font(45)
-    font = get_font(45)
-
-    # -----------------------------------------------------
+    # =====================================================
     # TITEL
-    # -----------------------------------------------------
+    # =====================================================
 
-    datum = jetzt().strftime("%d.%m.%Y %H:%M")
+    datum = jetzt().strftime(
+        "%d.%m.%Y %H:%M"
+    )
+
+    title = (
+        f"Aktuelle Tabelle  {datum} Uhr"
+    )
 
     draw.text(
-        (30, 25),
-        f"Aktuelle Rangliste – {datum} Uhr",
-        fill="#ffffff",
-        font=font_title
+        (PADDING, y),
+        title,
+        font=title_font,
+        fill=TITLE_COLOR
     )
 
-    # -----------------------------------------------------
-    # SPALTEN
-    # -----------------------------------------------------
+    y += 30
 
-    columns = [
-        ("Rg", 45, "center"),
-        ("Name", 150, "left"),
-        ("Sp", 570, "center"),
-        ("S", 650, "center"),
-        ("N", 720, "center"),
-        ("L+", 810, "center"),
-        ("L-", 900, "center"),
-        ("Dif", 1000, "center"),
-        ("Pkt", 1060, "center"),
-    ]
-
-    header_y = title_height
-
-    # -----------------------------------------------------
+    # =====================================================
     # HEADER
-    # -----------------------------------------------------
+    # =====================================================
 
-    for text, x, align in columns:
+    x = PADDING
 
-        bbox = draw.textbbox(
-            (0, 0),
-            text,
-            font=font_header
-        )
-
-        text_width = bbox[2] - bbox[0]
-
-        if align == "center":
-            draw_x = x - text_width / 2
-        else:
-            draw_x = x
+    for column, column_width in zip(
+        columns,
+        column_widths
+    ):
 
         draw.text(
-            (draw_x, header_y + 5),
-            text,
-            fill="#ffffff",
-            font=font_header
+            (x, y),
+            column,
+            font=font,
+            fill=HEADER_COLOR
         )
 
-    # -----------------------------------------------------
+        x += column_width
+
+    y += ROW_HEIGHT
+
+    # =====================================================
     # TRENNLINIE
-    # -----------------------------------------------------
+    # =====================================================
 
     draw.line(
-        (
-            20,
-            header_y + header_height - 5,
-            width - 20,
-            header_y + header_height - 5
-        ),
-        fill="#666666",
-        width=2
+        [
+            (PADDING, y),
+            (width - PADDING, y)
+        ],
+        fill=SEP_COLOR,
+        width=1
     )
 
-    # -----------------------------------------------------
+    y += 4
+
+    # =====================================================
     # SPIELER
-    # -----------------------------------------------------
+    # =====================================================
 
     for index, player in enumerate(table):
 
-        y = (
-            title_height
-            + header_height
-            + index * row_height
-            + 2
-        )
+        # Abwechselnde Zeilenfarbe
+        if index % 2 == 0:
+            text_color = ALT_ROW_COLOR
+        else:
+            text_color = ROW_COLOR
 
         values = [
             str(index + 1),
@@ -606,49 +675,27 @@ def create_table_image(table):
             str(player["punkte"]),
         ]
 
-        for (text, x, align), value in zip(
-            columns,
-            values
+        x = PADDING
+
+        for value, column_width in zip(
+            values,
+            column_widths
         ):
 
-            bbox = draw.textbbox(
-                (0, 0),
-                value,
-                font=font
-            )
-
-            text_width = bbox[2] - bbox[0]
-
-            if align == "center":
-                draw_x = x - text_width / 2
-            else:
-                draw_x = x
-
             draw.text(
-                (draw_x, y),
+                (x, y),
                 value,
-                fill="#ffffff",
-                font=font
+                font=font,
+                fill=text_color
             )
 
-        # -------------------------------------------------
-        # TRENNLINIE SPIELER
-        # -------------------------------------------------
+            x += column_width
 
-        draw.line(
-            (
-                20,
-                y + row_height - 5,
-                width - 20,
-                y + row_height - 5
-            ),
-            fill="#444444",
-            width=1
-        )
+        y += ROW_HEIGHT
 
-    # -----------------------------------------------------
+    # =====================================================
     # PNG
-    # -----------------------------------------------------
+    # =====================================================
 
     output = io.BytesIO()
 
