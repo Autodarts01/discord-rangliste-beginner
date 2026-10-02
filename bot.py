@@ -477,7 +477,6 @@ def get_font(size, bold=False):
 # =========================================================
 
 def create_table_image(table):
-
     width = 1100
 
     title_height = 90
@@ -506,17 +505,15 @@ def create_table_image(table):
     # SCHRIFTEN
     # -----------------------------------------------------
 
-    font_title = get_font(38)
-    font_header = get_font(34)
-    font = get_font(34)
+    font_title = get_font(45)
+    font_header = get_font(45)
+    font = get_font(45)
 
     # -----------------------------------------------------
     # TITEL
     # -----------------------------------------------------
 
-    datum = jetzt().strftime(
-        "%d.%m.%Y %H:%M"
-    )
+    datum = jetzt().strftime("%d.%m.%Y %H:%M")
 
     draw.text(
         (30, 25),
@@ -530,16 +527,16 @@ def create_table_image(table):
     # -----------------------------------------------------
 
     columns = [
-    ("Rg", 45, "center"),
-    ("Name", 150, "left"),
-    ("Sp", 570, "center"),
-    ("S", 650, "center"),
-    ("N", 720, "center"),
-    ("L+", 810, "center"),
-    ("L-", 900, "center"),
-    ("Dif", 1000, "center"),
-    ("Pkt", 1120, "center"),
-]
+        ("Rg", 45, "center"),
+        ("Name", 150, "left"),
+        ("Sp", 570, "center"),
+        ("S", 650, "center"),
+        ("N", 720, "center"),
+        ("L+", 810, "center"),
+        ("L-", 900, "center"),
+        ("Dif", 1000, "center"),
+        ("Pkt", 1060, "center"),
+    ]
 
     header_y = title_height
 
@@ -563,7 +560,7 @@ def create_table_image(table):
             draw_x = x
 
         draw.text(
-            (draw_x, header_y + 20),
+            (draw_x, header_y + 5),
             text,
             fill="#ffffff",
             font=font_header
@@ -594,7 +591,7 @@ def create_table_image(table):
             title_height
             + header_height
             + index * row_height
-            + 18
+            + 2
         )
 
         values = [
@@ -641,9 +638,9 @@ def create_table_image(table):
         draw.line(
             (
                 20,
-                y + row_height - 15,
+                y + row_height - 5,
                 width - 20,
-                y + row_height - 15
+                y + row_height - 5
             ),
             fill="#444444",
             width=1
