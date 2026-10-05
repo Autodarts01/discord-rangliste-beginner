@@ -28,6 +28,13 @@ TABLE_CHANNEL_NAME = "ranglisten-tabelle"
 INFO_CHANNEL_NAME = "ranglisten-info"
 ADMIN_CHANNEL_NAME = "admin-chat"
 
+# =========================================================
+# MONATS-LIMITS
+# =========================================================
+
+MAX_MONTHLY_GAMES = 30
+MAX_MONTHLY_HEAD_TO_HEAD = 2
+
 
 # =========================================================
 # GOOGLE SHEETS
@@ -141,6 +148,120 @@ def normalize_name(name):
 
 
 # =========================================================
+# MONATLICHE SPIELSTATISTIK
+# =========================================================
+
+def get_monthly_player_counts():
+
+    """
+    Gibt zurück:
+
+    {
+        "spielername": anzahl_spiele
+    }
+
+    Es werden nur Spiele des aktuellen Monats gezählt.
+    """
+
+    matches = get_match_rows()
+
+    counts = {}
+
+    for match in matches:
+
+        p1 = normalize_name(
+            match["spieler_a"]
+        )
+
+        p2 = normalize_name(
+            match["spieler_b"]
+        )
+
+        counts[p1] = counts.get(p1, 0) + 1
+        counts[p2] = counts.get(p2, 0) + 1
+
+    return counts
+
+
+def get_monthly_head_to_head_count(
+    player_a,
+    player_b
+):
+
+    """
+    Zählt, wie oft zwei Spieler
+    im aktuellen Monat gegeneinander gespielt haben.
+
+    Die Reihenfolge ist egal.
+    A gegen B und B gegen A zählen als dasselbe Paar.
+    """
+
+    player_a = normalize_name(player_a)
+    player_b = normalize_name(player_b)
+
+    count = 0
+
+    matches = get_match_rows()
+
+    for match in matches:
+
+        match_a = normalize_name(
+            match["spieler_a"]
+        )
+
+        match_b = normalize_name(
+            match["spieler_b"]
+        )
+
+        same_pair = (
+            (
+                match_a == player_a
+                and match_b == player_b
+            )
+            or
+            (
+                match_a == player_b
+                and match_b == player_a
+            )
+        )
+
+        if same_pair:
+            count += 1
+
+    return count
+
+
+def get_player_remaining_games(
+    player_name
+):
+
+    """
+    Gibt zurück, wie viele Spiele der Spieler
+    in diesem Monat noch machen darf.
+    """
+
+    player_key = normalize_name(
+        player_name
+    )
+
+    counts = get_monthly_player_counts()
+
+    played = counts.get(
+        player_key,
+        0
+    )
+
+    remaining = (
+        MAX_MONTHLY_GAMES - played
+    )
+
+    return max(
+        remaining,
+        0
+    )
+
+
+# =========================================================
 # GOOGLE-SHEETS ÜBERSCHRIFTEN
 # =========================================================
 
@@ -150,7 +271,9 @@ def ensure_headers():
     # ERGEBNIS
     # -----------------------------------------------------
 
-    ergebnis_values = ergebnis_sheet.get_all_values()
+    ergebnis_values = (
+        ergebnis_sheet.get_all_values()
+    )
 
     if not ergebnis_values:
 
@@ -200,7 +323,9 @@ def get_match_rows():
     if len(rows) <= 1:
         return []
 
-    aktueller_monat = jetzt().strftime("%Y-%m")
+    aktueller_monat = jetzt().strftime(
+        "%Y-%m"
+    )
 
     result = []
 
@@ -293,7 +418,9 @@ def calculate_table():
 
         for player in [p1, p2]:
 
-            key = normalize_name(player)
+            key = normalize_name(
+                player
+            )
 
             if key not in stats:
 
@@ -330,7 +457,9 @@ def calculate_table():
         # SIEGER
         # -------------------------------------------------
 
-        winner_key = normalize_name(winner)
+        winner_key = normalize_name(
+            winner
+        )
 
         if winner_key == p1_key:
 
@@ -355,7 +484,9 @@ def calculate_table():
             - data["legs_minus"]
         )
 
-        punkte = data["siege"] * 3
+        punkte = (
+            data["siege"] * 3
+        )
 
         table.append(
             {
@@ -444,7 +575,10 @@ def write_table():
 # SCHRIFTART
 # =========================================================
 
-def get_font(size, bold=False):
+def get_font(
+    size,
+    bold=False
+):
 
     if bold:
 
@@ -478,10 +612,6 @@ def get_font(size, bold=False):
 
 def create_table_image(table):
 
-    # =====================================================
-    # EINSTELLUNGEN
-    # =====================================================
-
     FONT_SIZE = 16
     TITLE_FONT_SIZE = 18
 
@@ -495,25 +625,27 @@ def create_table_image(table):
     SEP_COLOR = (100, 100, 100)
     TITLE_COLOR = (255, 255, 255)
 
-    # =====================================================
-    # SCHRIFT LADEN
-    # =====================================================
-
     import urllib.request
 
     font_file = "/tmp/mono.ttf"
 
     if not os.path.exists(font_file):
+
         try:
+
             urllib.request.urlretrieve(
                 "https://github.com/google/fonts/raw/main/apache/roboto/static/RobotoMono-Regular.ttf",
                 font_file
             )
+
         except Exception:
+
             font_file = None
 
     try:
+
         if font_file:
+
             font = ImageFont.truetype(
                 font_file,
                 FONT_SIZE
@@ -523,17 +655,20 @@ def create_table_image(table):
                 font_file,
                 TITLE_FONT_SIZE
             )
+
         else:
+
             font = ImageFont.load_default()
             title_font = font
 
     except Exception:
+
         font = ImageFont.load_default()
         title_font = font
 
-    # =====================================================
+    # -----------------------------------------------------
     # SPALTEN
-    # =====================================================
+    # -----------------------------------------------------
 
     columns = [
         "Rg",
@@ -564,9 +699,9 @@ def create_table_image(table):
         + PADDING * 2
     )
 
-    # =====================================================
+    # -----------------------------------------------------
     # HÖHE
-    # =====================================================
+    # -----------------------------------------------------
 
     number_of_rows = len(table)
 
@@ -575,13 +710,12 @@ def create_table_image(table):
         + 30
         + ROW_HEIGHT
         + 4
-        + (number_of_rows * ROW_HEIGHT)
+        + (
+            number_of_rows
+            * ROW_HEIGHT
+        )
         + PADDING
     )
-
-    # =====================================================
-    # BILD ERSTELLEN
-    # =====================================================
 
     image = Image.new(
         "RGB",
@@ -593,16 +727,17 @@ def create_table_image(table):
 
     y = PADDING
 
-    # =====================================================
+    # -----------------------------------------------------
     # TITEL
-    # =====================================================
+    # -----------------------------------------------------
 
     datum = jetzt().strftime(
         "%d.%m.%Y %H:%M"
     )
 
     title = (
-        f"Aktuelle Tabelle  {datum} Uhr"
+        f"Aktuelle Tabelle  "
+        f"{datum} Uhr"
     )
 
     draw.text(
@@ -614,9 +749,9 @@ def create_table_image(table):
 
     y += 30
 
-    # =====================================================
+    # -----------------------------------------------------
     # HEADER
-    # =====================================================
+    # -----------------------------------------------------
 
     x = PADDING
 
@@ -636,9 +771,9 @@ def create_table_image(table):
 
     y += ROW_HEIGHT
 
-    # =====================================================
+    # -----------------------------------------------------
     # TRENNLINIE
-    # =====================================================
+    # -----------------------------------------------------
 
     draw.line(
         [
@@ -651,16 +786,18 @@ def create_table_image(table):
 
     y += 4
 
-    # =====================================================
+    # -----------------------------------------------------
     # SPIELER
-    # =====================================================
+    # -----------------------------------------------------
 
     for index, player in enumerate(table):
 
-        # Abwechselnde Zeilenfarbe
         if index % 2 == 0:
+
             text_color = ALT_ROW_COLOR
+
         else:
+
             text_color = ROW_COLOR
 
         values = [
@@ -693,9 +830,9 @@ def create_table_image(table):
 
         y += ROW_HEIGHT
 
-    # =====================================================
+    # -----------------------------------------------------
     # PNG
-    # =====================================================
+    # -----------------------------------------------------
 
     output = io.BytesIO()
 
@@ -766,6 +903,7 @@ def get_previous_year_month():
     month = now.month - 1
 
     if month == 0:
+
         month = 12
         year -= 1
 
@@ -962,7 +1100,9 @@ def calculate_archive_table(
             - data["legs_minus"]
         )
 
-        punkte = data["siege"] * 3
+        punkte = (
+            data["siege"] * 3
+        )
 
         table.append(
             {
@@ -1076,15 +1216,7 @@ async def monthly_reset():
         flush=True
     )
 
-    # -----------------------------------------------------
-    # VORMONAT ARCHIVIEREN
-    # -----------------------------------------------------
-
     archive_current_month()
-
-    # -----------------------------------------------------
-    # TOP 3 POSTEN
-    # -----------------------------------------------------
 
     await send_month_winner()
 
@@ -1155,19 +1287,28 @@ async def send_test_month_winner(table):
         "Dezember",
     ]
 
-    month_name = f"{months[now.month - 1]} {now.year}"
+    month_name = (
+        f"{months[now.month - 1]} "
+        f"{now.year}"
+    )
 
     text = (
-        f"🏆 **MONATSSIEGER – {month_name.upper()}**\n"
+        f"🏆 **MONATSSIEGER – "
+        f"{month_name.upper()}**\n"
         "━━━━━━━━━━━━━━━━━━━━\n\n"
     )
 
-    emojis = ["🥇", "🥈", "🥉"]
+    emojis = [
+        "🥇",
+        "🥈",
+        "🥉"
+    ]
 
     for index, player in enumerate(top3):
 
         text += (
-            f"{emojis[index]} **{player['name']}**\n"
+            f"{emojis[index]} "
+            f"**{player['name']}**\n"
             f"🎮 {player['spiele']} Spiele | "
             f"🏆 {player['siege']} Siege | "
             f"💀 {player['niederlagen']} Niederlagen\n"
@@ -1180,14 +1321,18 @@ async def send_test_month_winner(table):
     winner = top3[0]
 
     text += (
-        f"👑 **Monatssieger: {winner['name']}!**\n"
+        f"👑 **Monatssieger: "
+        f"{winner['name']}!**\n"
         f"⭐ **{winner['punkte']} Punkte**\n"
         "🎯 Herzlichen Glückwunsch! 🔥"
     )
 
-    channel = get_channel(INFO_CHANNEL_NAME)
+    channel = get_channel(
+        INFO_CHANNEL_NAME
+    )
 
     if channel:
+
         await channel.send(text)
 
 
@@ -1207,7 +1352,9 @@ async def scheduler():
 
     now = jetzt()
 
-    current_month = now.strftime("%Y-%m")
+    current_month = now.strftime(
+        "%Y-%m"
+    )
 
     # =====================================================
     # MONATSRESET 00:00
@@ -1303,7 +1450,7 @@ async def on_message(message):
         content = message.content.strip()
 
         # -------------------------------------------------
-        # MENTIONS AUS ORIGINALNACHRICHT
+        # MENTIONS
         # -------------------------------------------------
 
         mention_matches = re.findall(
@@ -1377,7 +1524,7 @@ async def on_message(message):
             return
 
         # =================================================
-        # FORMAT PRÜFEN
+        # FORMAT
         # =================================================
 
         format_match = re.search(
@@ -1422,7 +1569,7 @@ async def on_message(message):
             return
 
         # -------------------------------------------------
-        # MAXIMUM
+        # MAXIMUM LEGS
         # -------------------------------------------------
 
         if (
@@ -1432,6 +1579,105 @@ async def on_message(message):
 
             await message.channel.send(
                 "⚠️ **Das Ergebnis ist ungültig.**"
+            )
+
+            return
+
+        # =================================================
+        # SPIELERNAMEN
+        # =================================================
+
+        player_a_name = (
+            player_a.display_name
+        )
+
+        player_b_name = (
+            player_b.display_name
+        )
+
+        # =================================================
+        # AKTUELLE SPIELANZAHL
+        # =================================================
+
+        monthly_counts = (
+            get_monthly_player_counts()
+        )
+
+        player_a_key = normalize_name(
+            player_a_name
+        )
+
+        player_b_key = normalize_name(
+            player_b_name
+        )
+
+        player_a_games = (
+            monthly_counts.get(
+                player_a_key,
+                0
+            )
+        )
+
+        player_b_games = (
+            monthly_counts.get(
+                player_b_key,
+                0
+            )
+        )
+
+        # =================================================
+        # MAX. 30 SPIELE PRO MONAT
+        # =================================================
+
+        if player_a_games >= MAX_MONTHLY_GAMES:
+
+            await message.channel.send(
+                f"⛔ **{player_a.mention} hat bereits "
+                f"{MAX_MONTHLY_GAMES} Spiele "
+                f"in diesem Monat absolviert.**\n"
+                f"📅 Für diesen Monat sind keine "
+                f"weiteren Spiele möglich."
+            )
+
+            return
+
+        if player_b_games >= MAX_MONTHLY_GAMES:
+
+            await message.channel.send(
+                f"⛔ **{player_b.mention} hat bereits "
+                f"{MAX_MONTHLY_GAMES} Spiele "
+                f"in diesem Monat absolviert.**\n"
+                f"📅 Für diesen Monat sind keine "
+                f"weiteren Spiele möglich."
+            )
+
+            return
+
+        # =================================================
+        # HEAD-TO-HEAD LIMIT
+        # =================================================
+
+        head_to_head_count = (
+            get_monthly_head_to_head_count(
+                player_a_name,
+                player_b_name
+            )
+        )
+
+        if (
+            head_to_head_count
+            >= MAX_MONTHLY_HEAD_TO_HEAD
+        ):
+
+            await message.channel.send(
+                f"⛔ **{player_a.mention} und "
+                f"{player_b.mention} haben bereits "
+                f"{MAX_MONTHLY_HEAD_TO_HEAD}× "
+                f"in diesem Monat gegeneinander gespielt.**\n\n"
+                f"📅 Gegen denselben Spieler sind "
+                f"maximal "
+                f"**{MAX_MONTHLY_HEAD_TO_HEAD} Spiele "
+                f"pro Monat** erlaubt."
             )
 
             return
@@ -1462,12 +1708,12 @@ async def on_message(message):
 
         ergebnis_sheet.append_row(
             [
-                player_a.display_name,
-                player_b.display_name,
+                player_a_name,
+                player_b_name,
                 legs_a,
                 legs_b,
-                player_b.display_name,
-                player_a.display_name,
+                player_b_name,
+                player_a_name,
                 winner.display_name,
                 datum,
             ],
@@ -1481,6 +1727,22 @@ async def on_message(message):
         write_table()
 
         # =================================================
+        # RESTLICHE SPIELE BERECHNEN
+        # =================================================
+
+        player_a_remaining = (
+            get_player_remaining_games(
+                player_a_name
+            )
+        )
+
+        player_b_remaining = (
+            get_player_remaining_games(
+                player_b_name
+            )
+        )
+
+        # =================================================
         # MATCH UPDATE
         # =================================================
 
@@ -1490,7 +1752,13 @@ async def on_message(message):
             f"{player_b.mention}\n\n"
             f"🏆 **Sieger: "
             f"{winner.mention} "
-            f"({legs_a}:{legs_b})**"
+            f"({legs_a}:{legs_b})**\n\n"
+            f"📅 **Monatliches Limit:** "
+            f"{MAX_MONTHLY_GAMES} Spiele\n"
+            f"{player_a.mention} "
+            f"**{player_a_remaining} Spiele übrig**\n"
+            f"{player_b.mention} "
+            f"**{player_b_remaining} Spiele übrig**"
         )
 
         return
@@ -1499,7 +1767,11 @@ async def on_message(message):
     # ADMIN COMMANDS
     # =====================================================
 
-    command = message.content.strip().lower()
+    command = (
+        message.content
+        .strip()
+        .lower()
+    )
 
     if command in (
         "!hilfe",
@@ -1512,14 +1784,21 @@ async def on_message(message):
         # NUR ADMIN-CHAT
         # -------------------------------------------------
 
-        if message.channel.name != ADMIN_CHANNEL_NAME:
+        if (
+            message.channel.name
+            != ADMIN_CHANNEL_NAME
+        ):
+
             return
 
         # -------------------------------------------------
         # NUR ADMINS
         # -------------------------------------------------
 
-        if not is_admin(message.author):
+        if not is_admin(
+            message.author
+        ):
+
             return
 
         # =================================================
@@ -1534,7 +1813,7 @@ async def on_message(message):
             )
 
             # Aktuellen Monat nur auswerten
-            # NICHT löschen und NICHT zurücksetzen
+            # NICHT löschen
             table = calculate_table()
 
             if table:
@@ -1546,12 +1825,19 @@ async def on_message(message):
                     "━━━━━━━━━━━━━━━━━━━━\n\n"
                 )
 
-                emojis = ["🥇", "🥈", "🥉"]
+                emojis = [
+                    "🥇",
+                    "🥈",
+                    "🥉"
+                ]
 
-                for index, player in enumerate(top3):
+                for index, player in enumerate(
+                    top3
+                ):
 
                     text += (
-                        f"{emojis[index]} **{player['name']}**\n"
+                        f"{emojis[index]} "
+                        f"**{player['name']}**\n"
                         f"🎮 {player['spiele']} Spiele | "
                         f"🏆 {player['siege']} Siege | "
                         f"💀 {player['niederlagen']} Niederlagen\n"
@@ -1564,7 +1850,8 @@ async def on_message(message):
                 winner = top3[0]
 
                 text += (
-                    f"👑 **Monatssieger: {winner['name']}!**\n"
+                    f"👑 **Monatssieger: "
+                    f"{winner['name']}!**\n"
                     f"⭐ **{winner['punkte']} Punkte**\n"
                     "🎯 Herzlichen Glückwunsch! 🔥"
                 )
@@ -1574,18 +1861,22 @@ async def on_message(message):
                 )
 
                 if info_channel:
-                    await info_channel.send(text)
+
+                    await info_channel.send(
+                        text
+                    )
 
             else:
 
                 await message.channel.send(
-                    "⚠️ Keine Ergebnisse im aktuellen Monat vorhanden."
+                    "⚠️ Keine Ergebnisse im "
+                    "aktuellen Monat vorhanden."
                 )
 
             await message.channel.send(
                 "🧪 **Test-Monatsreset abgeschlossen.**\n"
-                "✅ Die aktuelle Rangliste und Ergebnisse wurden "
-                "**nicht verändert**."
+                "✅ Die aktuelle Rangliste und "
+                "Ergebnisse wurden **nicht verändert**."
             )
 
             return
@@ -1600,7 +1891,12 @@ async def on_message(message):
                 "🛠️ **Mad Dog – Admin Hilfe**\n\n"
                 "`!tabelle` – aktuelle Rangliste anzeigen\n"
                 "`!undo` – letztes Ergebnis löschen\n"
-                "`!resettest` – Monatsreset testen"
+                "`!resettest` – Monatsreset testen\n\n"
+                f"📅 **Monatslimit:** "
+                f"{MAX_MONTHLY_GAMES} Spiele pro Spieler\n"
+                f"⚔️ **Direktes Duell:** "
+                f"max. {MAX_MONTHLY_HEAD_TO_HEAD}× "
+                f"pro Monat gegen denselben Spieler"
             )
 
             return
@@ -1623,7 +1919,9 @@ async def on_message(message):
 
         if command == "!undo":
 
-            rows = ergebnis_sheet.get_all_values()
+            rows = (
+                ergebnis_sheet.get_all_values()
+            )
 
             if len(rows) <= 1:
 
@@ -1669,6 +1967,22 @@ async def on_message(message):
             write_table()
 
             # -------------------------------------------------
+            # NEUE RESTANZAHL
+            # -------------------------------------------------
+
+            player_a_remaining = (
+                get_player_remaining_games(
+                    player_a
+                )
+            )
+
+            player_b_remaining = (
+                get_player_remaining_games(
+                    player_b
+                )
+            )
+
+            # -------------------------------------------------
             # BESTÄTIGUNG
             # -------------------------------------------------
 
@@ -1677,6 +1991,11 @@ async def on_message(message):
                 f"**{player_a} "
                 f"{legs_a}:{legs_b} "
                 f"{player_b}**\n\n"
+                f"📊 **Aktueller Monatsstand:**\n"
+                f"**{player_a}:** "
+                f"{player_a_remaining} Spiele übrig\n"
+                f"**{player_b}:** "
+                f"{player_b_remaining} Spiele übrig\n\n"
                 f"✅ Die Rangliste wurde "
                 f"neu berechnet."
             )
