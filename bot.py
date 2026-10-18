@@ -148,7 +148,7 @@ def normalize_name(name):
 
 
 # =========================================================
-# MONATLICHE SPIELSTATISTIK
+# MONATLICHE SPIELSTATISTIK & GEGNER-VERFÜGBARKEIT
 # =========================================================
 
 def get_monthly_player_counts():
@@ -259,6 +259,54 @@ def get_player_remaining_games(
         remaining,
         0
     )
+
+
+def get_available_opponents_for_player(
+    player_name,
+    all_players
+):
+
+    """
+    Gibt eine Übersicht zurück, wie viele Spiele gegen jeden anderen Spieler
+    im aktuellen Monat noch absolviert werden dürfen.
+    """
+
+    matches = get_match_rows()
+    player_key = normalize_name(player_name)
+    
+    h2h_counts = {}
+
+    for match in matches:
+
+        p1 = normalize_name(match["spieler_a"])
+        p2 = normalize_name(match["spieler_b"])
+        
+        if p1 == player_key:
+            h2h_counts[p2] = h2h_counts.get(p2, 0) + 1
+        elif p2 == player_key:
+            h2h_counts[p1] = h2h_counts.get(p1, 0) + 1
+
+    availability = []
+    
+    for other_player in all_players:
+
+        other_key = normalize_name(other_player)
+
+        if other_key == player_key:
+            continue
+            
+        played = h2h_counts.get(other_key, 0)
+        remaining = max(MAX_MONTHLY_HEAD_TO_HEAD - played, 0)
+        
+        availability.append(
+            {
+                "name": other_player,
+                "played": played,
+                "remaining": remaining
+            }
+        )
+        
+    return availability
 
 
 # =========================================================
@@ -1260,83 +1308,6 @@ async def monthly_reset():
 
 
 # =========================================================
-# TEST-MONATSSIEGER
-# =========================================================
-
-async def send_test_month_winner(table):
-
-    if not table:
-        return
-
-    top3 = table[:3]
-
-    now = jetzt()
-
-    months = [
-        "Januar",
-        "Februar",
-        "März",
-        "April",
-        "Mai",
-        "Juni",
-        "Juli",
-        "August",
-        "September",
-        "Oktober",
-        "November",
-        "Dezember",
-    ]
-
-    month_name = (
-        f"{months[now.month - 1]} "
-        f"{now.year}"
-    )
-
-    text = (
-        f"🏆 **MONATSSIEGER – "
-        f"{month_name.upper()}**\n"
-        "━━━━━━━━━━━━━━━━━━━━\n\n"
-    )
-
-    emojis = [
-        "🥇",
-        "🥈",
-        "🥉"
-    ]
-
-    for index, player in enumerate(top3):
-
-        text += (
-            f"{emojis[index]} "
-            f"**{player['name']}**\n"
-            f"🎮 {player['spiele']} Spiele | "
-            f"🏆 {player['siege']} Siege | "
-            f"💀 {player['niederlagen']} Niederlagen\n"
-            f"🎯 Legs +{player['legs_plus']} | "
-            f"📉 Legs -{player['legs_minus']} | "
-            f"📊 Diff {player['leg_dif']}\n"
-            f"⭐ **{player['punkte']} Punkte**\n\n"
-        )
-
-    winner = top3[0]
-
-    text += (
-        f"👑 **Monatssieger: "
-        f"{winner['name']}!**\n"
-        f"⭐ **{winner['punkte']} Punkte**\n"
-        "🎯 Herzlichen Glückwunsch! 🔥"
-    )
-
-    channel = get_channel(
-        INFO_CHANNEL_NAME
-    )
-
-    if channel:
-
-        await channel.send(text)
-
-
-# =========================================================
 # ZEITPLAN
 # =========================================================
 
@@ -1428,7 +1399,7 @@ async def on_ready():
 
 
 # =========================================================
-# MATCH-ERGEBNIS
+# MATCH-ERGEBNIS & BEFEHLE
 # =========================================================
 
 @bot.event
@@ -1441,13 +1412,56 @@ async def on_message(message):
     if message.author.bot:
         return
 
+    content = message.content.strip()
+    command = content.lower()
+
+    # =====================================================
+    # ALLGEMEINER BEFEHL: !gegner (Überall nutzbar)
+    # =====================================================
+
+    if command == "!gegner":
+
+        current_table = calculate_table()
+        all_player_names = [p["name"] for p in current_table]
+        
+        user_name = message.author.display_name
+        
+        if user_name not in all_player_names:
+            all_player_names.append(user_name)
+            
+        opponents = get_available_opponents_for_player(user_name, all_player_names)
+        
+        if not opponents:
+            await message.channel.send("⚠️ Es wurden noch keine anderen Spieler in der Rangliste registriert.")
+            return
+
+        text = f"🎯 **Mögliche Gegner für {message.author.mention} in diesem Monat:**\n━━━━━━━━━━━━━━━━━━━━\n\n"
+        
+        available_list = []
+        blocked_list = []
+        
+        for opp in opponents:
+            if opp["remaining"] > 0:
+                available_list.append(f"✅ **{opp['name']}**: noch **{opp['remaining']}×** spielbar ({opp['played']}/{MAX_MONTHLY_HEAD_TO_HEAD})")
+            else:
+                blocked_list.append(f"⛔ **{opp['name']}**: Limit erreicht ({MAX_MONTHLY_HEAD_TO_HEAD}/{MAX_MONTHLY_HEAD_TO_HEAD})")
+                
+        if available_list:
+            text += "**Offene Duelle:**\n" + "\n".join(available_list) + "\n\n"
+        else:
+            text += "❌ Du hast gegen alle registrierten Spieler das Limit erreicht!\n\n"
+            
+        if blocked_list:
+            text += "**Bereits ausgespielt:**\n" + "\n".join(blocked_list)
+
+        await message.channel.send(text)
+        return
+
     # =====================================================
     # MATCH-KANAL
     # =====================================================
 
     if message.channel.name == MATCH_CHANNEL_NAME:
-
-        content = message.content.strip()
 
         # -------------------------------------------------
         # MENTIONS
@@ -1486,7 +1500,6 @@ async def on_message(message):
             int(mention_matches[1])
         )
 
-        # Falls nicht im Cache
         if player_a is None:
 
             player_a = message.guild.get_member(
@@ -1767,12 +1780,6 @@ async def on_message(message):
     # ADMIN COMMANDS
     # =====================================================
 
-    command = (
-        message.content
-        .strip()
-        .lower()
-    )
-
     if command in (
         "!hilfe",
         "!tabelle",
@@ -1812,8 +1819,6 @@ async def on_message(message):
                 flush=True
             )
 
-            # Aktuellen Monat nur auswerten
-            # NICHT löschen
             table = calculate_table()
 
             if table:
@@ -1952,23 +1957,11 @@ async def on_message(message):
             legs_a = deleted[2]
             legs_b = deleted[3]
 
-            # -------------------------------------------------
-            # LETZTE ZEILE LÖSCHEN
-            # -------------------------------------------------
-
             ergebnis_sheet.delete_rows(
                 last_row
             )
 
-            # -------------------------------------------------
-            # TABELLE NEU BERECHNEN
-            # -------------------------------------------------
-
             write_table()
-
-            # -------------------------------------------------
-            # NEUE RESTANZAHL
-            # -------------------------------------------------
 
             player_a_remaining = (
                 get_player_remaining_games(
@@ -1981,10 +1974,6 @@ async def on_message(message):
                     player_b
                 )
             )
-
-            # -------------------------------------------------
-            # BESTÄTIGUNG
-            # -------------------------------------------------
 
             await message.channel.send(
                 f"🗑️ **Letztes Ergebnis gelöscht!**\n\n"
