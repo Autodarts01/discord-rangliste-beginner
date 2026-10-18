@@ -895,10 +895,19 @@ def create_table_image(table):
 
 
 # =========================================================
-# TABELLENBILD SENDEN
+# TABELLENBILD SENDEN (ALTE BOT-NACHRICHTEN LÖSCHEN)
 # =========================================================
 
 async def send_table_image(channel):
+
+    # Alte Bot-Nachrichten im Kanal löschen
+    try:
+        async for message in channel.history(limit=20):
+            if message.author == bot.user:
+                await message.delete()
+                await asyncio.sleep(0.5)
+    except Exception as e:
+        print(f"⚠️ Fehler beim Löschen alter Tabellen: {e}", flush=True)
 
     table = write_table()
 
